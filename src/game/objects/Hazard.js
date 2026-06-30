@@ -1,4 +1,6 @@
 
+import Phaser from 'phaser'
+
 // Hazard type definitions
 export const HAZARD_TYPES = {
   cannonball_wave: {
@@ -601,6 +603,26 @@ export default class Hazard {
   get y() { return this._body ? this._body.y : 0 }
   get body() { return this._body ? this._body.body : null }
   get active() { return !this._dead && this._body && this._body.active }
+
+  getPhysicsBody() {
+    return this._body
+  }
+
+  getBounds() {
+    if (!this._body || !this._body.active) return new Phaser.Geom.Rectangle(0, 0, 0, 0)
+    return this._body.getBounds()
+  }
+
+  markDodged() {
+    this.dodged = true
+  }
+
+  checkCloseCall(gerald) {
+    if (this.closeCallChecked || !gerald || !this.definition.closeCallDistance) return false
+    this.closeCallChecked = true
+    const distance = Phaser.Math.Distance.Between(this.x, this.y, gerald.x, gerald.y)
+    return distance <= this.definition.closeCallDistance
+  }
 
   destroy() {
     if (this._dead) return

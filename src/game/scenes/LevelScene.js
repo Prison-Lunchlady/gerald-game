@@ -637,7 +637,7 @@ export default class LevelScene extends Phaser.Scene {
     }
 
     // Update hazards
-    this.hazardList.forEach(h => { if (h.active) h.update() })
+    this.hazardList.forEach(h => { if (h.active) h.update(delta) })
 
     // Clean up off-screen hazards + dodged scoring
     this.hazardList = this.hazardList.filter(h => {
