@@ -24,7 +24,7 @@ export default class FinalVictoryScene extends Phaser.Scene {
     bg.fillGradientStyle(0x49c7ff, 0x49c7ff, 0x002766, 0x002766, 1)
     bg.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT)
     bg.fillStyle(0xdde8f0, 1)
-    bg.fillRect(0, 130, GAME_WIDTH, 12)
+    bg.fillRect(0, 138, GAME_WIDTH, 12)
 
     for (let i = 0; i < 36; i++) {
       const bit = this.add.rectangle(
@@ -44,7 +44,7 @@ export default class FinalVictoryScene extends Phaser.Scene {
       })
     }
 
-    this.add.text(GAME_WIDTH / 2, 78, 'Gerald graduated', {
+    this.add.text(GAME_WIDTH / 2, 66, 'Gerald graduated', {
       fontSize: '30px',
       fontFamily: 'Impact, Arial Black, sans-serif',
       color: '#ffffff',
@@ -52,7 +52,7 @@ export default class FinalVictoryScene extends Phaser.Scene {
       strokeThickness: 6,
     }).setOrigin(0.5)
 
-    this.add.text(GAME_WIDTH / 2, 116, 'pool school!', {
+    this.add.text(GAME_WIDTH / 2, 104, 'pool school!', {
       fontSize: '38px',
       fontFamily: 'Impact, Arial Black, sans-serif',
       color: '#ffdd00',
@@ -60,10 +60,10 @@ export default class FinalVictoryScene extends Phaser.Scene {
       strokeThickness: 7,
     }).setOrigin(0.5)
 
-    const gerald = this.add.image(GAME_WIDTH / 2, 230, 'gerald').setScale(1.9)
+    const gerald = this.add.image(GAME_WIDTH / 2, 232, 'gerald').setScale(1.65)
     this.tweens.add({
       targets: gerald,
-      y: 215,
+      y: 222,
       angle: 8,
       duration: 650,
       yoyo: true,
@@ -71,7 +71,7 @@ export default class FinalVictoryScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     })
 
-    this.add.text(GAME_WIDTH / 2, 324, 'Thanks for helping Gerald swim.', {
+    this.add.text(GAME_WIDTH / 2, 320, 'Thanks for helping Gerald swim.', {
       fontSize: '16px',
       fontFamily: 'Arial, sans-serif',
       color: '#cceeff',
