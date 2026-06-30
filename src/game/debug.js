@@ -1,4 +1,4 @@
-export const BUILD_VERSION = 'freeze-fix-1'
+export const BUILD_VERSION = 'balance-1'
 export const DEBUG_GERALD = true
 
 export function debugLog(event, data = {}) {

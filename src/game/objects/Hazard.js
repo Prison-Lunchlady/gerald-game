@@ -43,27 +43,29 @@ export const HAZARD_TYPES = {
   },
   pool_jet: {
     drownIncrease: 0,
-    drownRate: 5,        // per-second while inside active jet
+    drownRate: 5,        // per-second while inside strong current
     speed: 0,
     scoreOnDodge: 15,
     closeCallDistance: 70,
     closeCallScore: 40,
-    width: 70,           // overridden per direction in constructor
+    width: 80,           // overridden per direction in constructor
     height: 125,
     duration: 4200,
   },
   vacuum_suction: {
     drownIncrease: 0,
-    drownRateOuter: 3,   // per-second in outer zone
-    drownRateInner: 10,  // per-second in inner zone
+    drownRateOuter: 0.5, // per-second in outer zone
+    drownRateMiddle: 3.5,
+    drownRateInner: 12,  // per-second in inner zone
     speed: 0,
     scoreOnDodge: 20,
     closeCallDistance: 100,
     closeCallScore: 55,
-    width: 180,
-    height: 180,
-    outerRadius: 80,
-    innerRadius: 38,
+    width: 210,
+    height: 210,
+    outerRadius: 105,
+    middleRadius: 65,
+    innerRadius: 34,
     duration: 5000,
   },
 }
@@ -91,6 +93,7 @@ export default class Hazard {
     this._jetStrength = 250
     this._jetPhase = null
     this._vacPhase = null
+    this._vacStrength = 1.0
     this._txtShown = false  // debounce for per-frame floating text
     this._tweens = []
 
@@ -104,14 +107,20 @@ export default class Hazard {
       this._jetPhase = 'warning'
     } else if (type === 'vacuum_suction') {
       this._vacPhase = 'warning'
+      this._vacStrength = opts.vacuumStrength || 1.0
     }
 
     // --- Physics body: size depends on type/direction ---
     let bodyW = def.width
     let bodyH = def.height
     if (type === 'pool_jet') {
-      bodyW = (this._jetDir === 'down') ? 70 : 125
-      bodyH = (this._jetDir === 'down') ? 125 : 70
+      if (this._jetDir === 'down_left' || this._jetDir === 'down_right') {
+        bodyW = 120
+        bodyH = 130
+      } else {
+        bodyW = (this._jetDir === 'down') ? 80 : 135
+        bodyH = (this._jetDir === 'down') ? 135 : 80
+      }
     } else if (type === 'splash_zone' && this._splashScale !== 1.0) {
       bodyW = Math.round(def.width * this._splashScale)
       bodyH = Math.round(def.height * this._splashScale)
@@ -237,7 +246,7 @@ export default class Hazard {
     // ================================================================
     if (type === 'pool_jet') {
       // Warning text
-      const warnOffY = (this._jetDir === 'down') ? -80 : -50
+      const warnOffY = this._jetDir.startsWith('down') ? -80 : -50
       this._warnTxt = scene.add.text(x, y + warnOffY, 'JET!', {
         fontSize: '14px',
         fontFamily: 'Impact, Arial Black, sans-serif',
@@ -270,8 +279,8 @@ export default class Hazard {
           // Pulsing stream animation
           this._addTween({
             targets: this._gfx,
-            scaleX: (this._jetDir === 'down') ? 1.05 : 1.0,
-            scaleY: (this._jetDir === 'down') ? 1.0 : 1.05,
+            scaleX: this._jetDir.startsWith('down') ? 1.05 : 1.0,
+            scaleY: this._jetDir.startsWith('down') ? 1.0 : 1.05,
             duration: 280, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
           })
         },
@@ -443,7 +452,7 @@ export default class Hazard {
     if (type === 'pool_jet') {
       const dir = this._jetDir
 
-      if (dir === 'down') {
+      if (dir === 'down' || dir === 'down_left' || dir === 'down_right') {
         // Nozzle housing (dark blue rectangle at top)
         g.fillStyle(0x002244, 0.95)
         g.fillRect(-35, -62, 70, 28)
@@ -599,7 +608,7 @@ export default class Hazard {
       const def = this.definition
       let txtOffY = -68
       if (this.hazardType === 'splash_zone') txtOffY = -68 * this._splashScale
-      if (this.hazardType === 'pool_jet') txtOffY = (this._jetDir === 'down') ? -80 : -50
+      if (this.hazardType === 'pool_jet') txtOffY = this._jetDir.startsWith('down') ? -80 : -50
       if (this.hazardType === 'vacuum_suction') txtOffY = -100
       this._warnTxt.setPosition(bx, by + txtOffY)
     }

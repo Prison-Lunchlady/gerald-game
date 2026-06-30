@@ -310,7 +310,9 @@ export default class LevelScene extends Phaser.Scene {
     })
 
     this.time.delayedCall(800,  () => this._spawnCollectible('bubble'))
-    this.time.delayedCall(1600, () => this._spawnCollectible('bubble'))
+    if ((this.levelDef.order || 1) <= 3) {
+      this.time.delayedCall(1600, () => this._spawnCollectible('bubble'))
+    }
   }
 
   _spawnNextHazard() {
@@ -362,12 +364,15 @@ export default class LevelScene extends Phaser.Scene {
     } else if (type === 'pool_jet') {
       x = Phaser.Math.Between(Math.floor(GAME_WIDTH * 0.35), GAME_WIDTH - 100)
       y = Phaser.Math.Between(WATER_TOP + 100, POOL_BOTTOM - 150)
-      const jetDirs = ['down', 'down', 'right', 'left']
+      const jetDirs = this.levelId === 'pool_jet_panic'
+        ? ['down', 'down_left', 'down_right', 'right', 'left']
+        : ['down', 'down_right', 'right', 'left']
       opts.jetDir = jetDirs[Math.floor(Math.random() * jetDirs.length)]
-      opts.jetStrength = 280 * (this.levelDef.waveStrength || 1.0)
+      opts.jetStrength = this.levelDef.jetStrength || (340 * (this.levelDef.waveStrength || 1.0))
     } else if (type === 'vacuum_suction') {
       x = Phaser.Math.Between(Math.floor(GAME_WIDTH * 0.3), GAME_WIDTH - 120)
       y = Phaser.Math.Between(WATER_TOP + 120, POOL_BOTTOM - 150)
+      opts.vacuumStrength = this.levelDef.vacuumStrength || 1.0
     } else {
       x = GAME_WIDTH + 50
       y = Phaser.Math.Between(WATER_TOP + 40, POOL_BOTTOM - 80)
@@ -400,10 +405,18 @@ export default class LevelScene extends Phaser.Scene {
 
   _spawnCollectible(type) {
     if (this.isGameOver || this.isWon) return
-    const y = Phaser.Math.Between(WATER_TOP + 40, POOL_BOTTOM - 80)
+    const y = this._getCollectibleSpawnY(type)
     const x = Phaser.Math.Between(GAME_WIDTH - 60, GAME_WIDTH - 20)
     const item = new Collectible(this, x, y, type)
     this.collectibles.add(item)
+  }
+
+  _getCollectibleSpawnY(type) {
+    if (type !== 'bubble') return Phaser.Math.Between(WATER_TOP + 40, POOL_BOTTOM - 80)
+    if (this.levelId === 'splash_zone') return Phaser.Math.Between(WATER_TOP + 120, POOL_BOTTOM - 115)
+    if (this.levelId === 'pool_jet_panic') return Phaser.Math.Between(WATER_TOP + 115, POOL_BOTTOM - 95)
+    if (this.levelId === 'vacuum_trouble') return Phaser.Math.Between(WATER_TOP + 150, POOL_BOTTOM - 80)
+    return Phaser.Math.Between(WATER_TOP + 40, POOL_BOTTOM - 80)
   }
 
   // --- COLLISION HANDLERS ---
@@ -549,6 +562,14 @@ export default class LevelScene extends Phaser.Scene {
     this.vacuumZones = []
   }
 
+  _getJetVector(dir) {
+    if (dir === 'right') return { x: 1, y: 0.08 }
+    if (dir === 'left') return { x: -1, y: 0.08 }
+    if (dir === 'down_left') return { x: -0.62, y: 0.95 }
+    if (dir === 'down_right') return { x: 0.62, y: 0.95 }
+    return { x: 0, y: 1 }
+  }
+
   // --- MAIN UPDATE LOOP ---
   update(time, delta) {
     if (this.isGameOver || this.isWon) return
@@ -644,15 +665,14 @@ export default class LevelScene extends Phaser.Scene {
           const resist = this.gerald.jetResistMultiplier || 1.0
           const str = zone._jetStrength * resist
           const dir = zone._jetDir || 'down'
-          if (dir === 'down') {
-            const newVY = Math.min(this.gerald.body.velocity.y + str * (delta / 1000), this.gerald.maxDownVelocity + 55)
-            this.gerald.setVelocityY(newVY)
-          } else if (dir === 'right') {
-            this.gerald.setVelocityX(Math.min(this.gerald.body.velocity.x + str * (delta / 1000), 320))
-          } else {
-            this.gerald.setVelocityX(Math.max(this.gerald.body.velocity.x - str * (delta / 1000), -320))
-          }
-          const dmg = zone.definition.drownRate * (delta / 1000) * this.gerald.hazardDamageMultiplier
+          const vec = this._getJetVector(dir)
+          const dt = delta / 1000
+          const vx = this.gerald.body.velocity.x + vec.x * str * dt
+          const vy = this.gerald.body.velocity.y + vec.y * str * dt
+          this.gerald.setVelocityX(Phaser.Math.Clamp(vx, -380, 380))
+          this.gerald.setVelocityY(Phaser.Math.Clamp(vy, -420, this.gerald.maxDownVelocity + 115))
+          const dmgRate = this.levelDef.jetDrownRate || zone.definition.drownRate
+          const dmg = dmgRate * (delta / 1000) * this.gerald.hazardDamageMultiplier
           this.drownMeter = Math.min(100, this.drownMeter + dmg)
           // Debounced floating text
           if (!zone._txtShown) {
@@ -671,24 +691,31 @@ export default class LevelScene extends Phaser.Scene {
       if (zone._vacPhase === 'active') {
         const dist = Phaser.Math.Distance.Between(this.gerald.x, this.gerald.y, zone.x, zone.y)
         const outerR = zone.definition.outerRadius || 80
+        const middleR = zone.definition.middleRadius || 55
         const innerR = zone.definition.innerRadius || 38
         if (dist < outerR && dist > 2) {
           const angle = Phaser.Math.Angle.Between(this.gerald.x, this.gerald.y, zone.x, zone.y)
           const escape = this.gerald.vacuumEscapeMultiplier || 1.0
           const isInner = dist < innerR
-          const pullStr = (isInner ? 230 : 95) * escape
+          const isMiddle = dist < middleR
+          const proximity = 1 - Math.min(dist / outerR, 1)
+          const tierPull = isInner ? 330 : isMiddle ? 205 : 95
+          const pullStr = tierPull * (zone._vacStrength || 1.0) * (0.75 + proximity * 0.5) * escape
           const drownRate = isInner
-            ? (zone.definition.drownRateInner || 10)
-            : (zone.definition.drownRateOuter || 3)
+            ? (zone.definition.drownRateInner || 12)
+            : isMiddle
+              ? (zone.definition.drownRateMiddle || 3.5)
+              : (zone.definition.drownRateOuter || 0.5)
           const vx = Math.cos(angle) * pullStr * (delta / 1000)
           const vy = Math.sin(angle) * pullStr * (delta / 1000)
-          this.gerald.setVelocityX(Phaser.Math.Clamp(this.gerald.body.velocity.x + vx, -340, 340))
-          this.gerald.setVelocityY(Phaser.Math.Clamp(this.gerald.body.velocity.y + vy, -400, this.gerald.maxDownVelocity + 60))
-          const dmg = drownRate * (delta / 1000) * this.gerald.hazardDamageMultiplier
+          this.gerald.setVelocityX(Phaser.Math.Clamp(this.gerald.body.velocity.x + vx, -390, 390))
+          this.gerald.setVelocityY(Phaser.Math.Clamp(this.gerald.body.velocity.y + vy, -430, this.gerald.maxDownVelocity + 95))
+          const dmgResist = isInner ? Math.max(escape, 0.6) : 1
+          const dmg = drownRate * (delta / 1000) * this.gerald.hazardDamageMultiplier * dmgResist
           this.drownMeter = Math.min(100, this.drownMeter + dmg)
           if (!zone._txtShown) {
             zone._txtShown = true
-            this._showFloatingText(this.gerald.x, this.gerald.y - 30, isInner ? 'CAUGHT!' : 'PULL!', '#9966FF')
+            this._showFloatingText(this.gerald.x, this.gerald.y - 30, isInner ? 'CAUGHT!' : isMiddle ? 'PULL!' : 'TUG!', '#9966FF')
             this.time.delayedCall(1500, () => { if (zone.active) zone._txtShown = false })
           }
         }

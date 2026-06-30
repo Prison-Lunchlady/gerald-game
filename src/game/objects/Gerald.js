@@ -58,8 +58,8 @@ export default class Gerald extends Phaser.Physics.Arcade.Sprite {
     purchasedUpgrades.forEach(id => {
       switch(id) {
         case 'tiny_arm_floaties':
-          this.sinkSpeedMultiplier *= 0.90
-          this.drownFillRateMultiplier *= 0.75
+          this.sinkSpeedMultiplier *= 0.87
+          this.drownFillRateMultiplier *= 0.70
           this.floatiesVisible = true
           break
         case 'better_bob':
@@ -67,17 +67,17 @@ export default class Gerald extends Phaser.Physics.Arcade.Sprite {
           this.bobberVisible = true
           break
         case 'pool_noodle_belt':
-          this.sinkSpeedMultiplier *= 0.83
-          this.passiveFloatForce = 5
+          this.sinkSpeedMultiplier *= 0.78
+          this.passiveFloatForce = 7
           break
         case 'wave_resistance':
           this.hazardDamageMultiplier *= 0.60
           break
         case 'jet_resistance':
-          this.jetResistMultiplier *= 0.50
+          this.jetResistMultiplier *= 0.58
           break
         case 'vacuum_escape':
-          this.vacuumEscapeMultiplier *= 0.50
+          this.vacuumEscapeMultiplier *= 0.60
           break
       }
     })
@@ -115,7 +115,8 @@ export default class Gerald extends Phaser.Physics.Arcade.Sprite {
     const depthFactor = nearSurface ? 0.60 : 1.0
 
     const boostVel = this.bobPower * this.swimBoostMultiplier * depthFactor
-    const clamped = Math.max(boostVel, -400)
+    const maxUpwardSpeed = -400 * Math.min(this.swimBoostMultiplier, 1.1)
+    const clamped = Math.max(boostVel, maxUpwardSpeed)
 
     this.setVelocityY(clamped)
 
