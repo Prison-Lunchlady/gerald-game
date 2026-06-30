@@ -371,20 +371,21 @@ export default class Hazard {
     // ---- POOL TORPEDO WAVE ----
     if (type === 'cannonball_wave') {
       const y = -8
+      // Hazards drift left, so the rounded nose belongs on the left.
       g.fillStyle(0xffe14a, 0.96)
-      g.fillRoundedRect(-24, y - 9, 44, 18, 9)
+      g.fillRoundedRect(-20, y - 9, 44, 18, 9)
       g.fillStyle(0xff6f3d, 0.96)
-      g.fillCircle(20, y, 9)
+      g.fillCircle(-22, y, 9)
       g.fillStyle(0x1bd1ff, 0.95)
-      g.fillTriangle(-23, y - 9, -34, y - 18, -27, y)
-      g.fillTriangle(-23, y + 9, -34, y + 18, -27, y)
+      g.fillTriangle(23, y - 9, 34, y - 18, 27, y)
+      g.fillTriangle(23, y + 9, 34, y + 18, 27, y)
       g.fillStyle(0x26d96c, 0.95)
-      g.fillTriangle(-24, y - 6, -36, y, -24, y + 6)
+      g.fillTriangle(24, y - 6, 36, y, 24, y + 6)
       g.lineStyle(2, 0xf04c2f, 0.95)
-      g.lineBetween(-9, y - 8, -9, y + 8)
-      g.lineBetween(4, y - 8, 4, y + 8)
+      g.lineBetween(-4, y - 8, -4, y + 8)
+      g.lineBetween(9, y - 8, 9, y + 8)
       g.fillStyle(0xffffff, 0.45)
-      g.fillEllipse(10, y - 4, 14, 5)
+      g.fillEllipse(-12, y - 4, 14, 5)
       g.lineStyle(2, 0x1788bb, 0.72)
       for (let i = 0; i < 3; i++) {
         const yOff = 18 + i * 9
@@ -393,14 +394,33 @@ export default class Hazard {
       return
     }
 
-    // ---- FLOATING LEAF ----
+    // ---- WATER BUG ----
     if (type === 'floating_leaf') {
-      g.fillStyle(0x33aa22, 0.9)
-      g.fillEllipse(0, this._leafOffsetY, 44, 18)
-      g.fillStyle(0x55cc33, 0.6)
-      g.fillEllipse(-5, this._leafOffsetY - 2, 24, 10)
-      g.lineStyle(1, 0x228800, 0.8)
-      g.lineBetween(-18, this._leafOffsetY, 18, this._leafOffsetY)
+      const y = this._leafOffsetY
+      g.lineStyle(2, 0x0d2b35, 0.88)
+      g.lineBetween(-16, y - 5, -28, y - 12)
+      g.lineBetween(-16, y + 4, -29, y + 10)
+      g.lineBetween(0, y - 7, -10, y - 17)
+      g.lineBetween(0, y + 7, -10, y + 17)
+      g.lineBetween(15, y - 5, 27, y - 12)
+      g.lineBetween(15, y + 4, 28, y + 10)
+      g.fillStyle(0x173b45, 0.98)
+      g.fillEllipse(0, y, 34, 19)
+      g.fillStyle(0x275c68, 0.95)
+      g.fillEllipse(-8, y - 3, 18, 9)
+      g.fillStyle(0x102830, 0.98)
+      g.fillCircle(18, y, 8)
+      g.lineStyle(1, 0x8fe8ff, 0.5)
+      g.lineBetween(-2, y - 8, -2, y + 8)
+      g.lineStyle(1, 0x0d2b35, 0.85)
+      g.lineBetween(21, y - 5, 29, y - 12)
+      g.lineBetween(21, y + 5, 29, y + 12)
+      g.fillStyle(0xffffff, 0.85)
+      g.fillCircle(21, y - 3, 2)
+      g.fillCircle(21, y + 3, 2)
+      g.fillStyle(0x111111, 0.9)
+      g.fillCircle(22, y - 3, 1)
+      g.fillCircle(22, y + 3, 1)
       return
     }
 

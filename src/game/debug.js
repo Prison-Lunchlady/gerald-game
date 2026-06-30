@@ -1,4 +1,4 @@
-export const BUILD_VERSION = 'visual-balance-1'
+export const BUILD_VERSION = 'visual-polish-2'
 export const DEBUG_GERALD = true
 
 export function debugLog(event, data = {}) {
