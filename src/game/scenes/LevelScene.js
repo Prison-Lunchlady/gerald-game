@@ -310,7 +310,7 @@ export default class LevelScene extends Phaser.Scene {
     })
 
     this.time.delayedCall(800,  () => this._spawnCollectible('bubble'))
-    if ((this.levelDef.order || 1) <= 3) {
+    if ((this.levelDef.order || 1) <= 4) {
       this.time.delayedCall(1600, () => this._spawnCollectible('bubble'))
     }
   }
@@ -362,16 +362,20 @@ export default class LevelScene extends Phaser.Scene {
       y = Phaser.Math.Between(WATER_TOP + 80, POOL_BOTTOM - 130)
       opts.splashScale = this.levelDef.splashScale || 1.0
     } else if (type === 'pool_jet') {
-      x = Phaser.Math.Between(Math.floor(GAME_WIDTH * 0.35), GAME_WIDTH - 100)
-      y = Phaser.Math.Between(WATER_TOP + 100, POOL_BOTTOM - 150)
+      const targetX = this.gerald ? this.gerald.x + Phaser.Math.Between(55, 145) : Phaser.Math.Between(Math.floor(GAME_WIDTH * 0.45), GAME_WIDTH - 90)
+      x = Phaser.Math.Clamp(targetX, Math.floor(GAME_WIDTH * 0.28), GAME_WIDTH - 85)
+      const targetY = this.gerald ? this.gerald.y + Phaser.Math.Between(-70, 70) : Phaser.Math.Between(WATER_TOP + 100, POOL_BOTTOM - 150)
+      y = Phaser.Math.Clamp(targetY, WATER_TOP + 100, POOL_BOTTOM - 120)
       const jetDirs = this.levelId === 'pool_jet_panic'
         ? ['down', 'down_left', 'down_right', 'right', 'left']
         : ['down', 'down_right', 'right', 'left']
       opts.jetDir = jetDirs[Math.floor(Math.random() * jetDirs.length)]
       opts.jetStrength = this.levelDef.jetStrength || (340 * (this.levelDef.waveStrength || 1.0))
     } else if (type === 'vacuum_suction') {
-      x = Phaser.Math.Between(Math.floor(GAME_WIDTH * 0.3), GAME_WIDTH - 120)
-      y = Phaser.Math.Between(WATER_TOP + 120, POOL_BOTTOM - 150)
+      const targetX = this.gerald ? this.gerald.x + Phaser.Math.Between(70, 170) : Phaser.Math.Between(Math.floor(GAME_WIDTH * 0.3), GAME_WIDTH - 120)
+      const targetY = this.gerald ? this.gerald.y + Phaser.Math.Between(-80, 80) : Phaser.Math.Between(WATER_TOP + 120, POOL_BOTTOM - 150)
+      x = Phaser.Math.Clamp(targetX, Math.floor(GAME_WIDTH * 0.35), GAME_WIDTH - 95)
+      y = Phaser.Math.Clamp(targetY, WATER_TOP + 120, POOL_BOTTOM - 100)
       opts.vacuumStrength = this.levelDef.vacuumStrength || 1.0
     } else {
       x = GAME_WIDTH + 50

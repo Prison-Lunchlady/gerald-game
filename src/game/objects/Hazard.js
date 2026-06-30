@@ -48,7 +48,7 @@ export const HAZARD_TYPES = {
     scoreOnDodge: 15,
     closeCallDistance: 70,
     closeCallScore: 40,
-    width: 80,           // overridden per direction in constructor
+    width: 100,          // overridden per direction in constructor
     height: 125,
     duration: 4200,
   },
@@ -61,10 +61,10 @@ export const HAZARD_TYPES = {
     scoreOnDodge: 20,
     closeCallDistance: 100,
     closeCallScore: 55,
-    width: 210,
-    height: 210,
-    outerRadius: 105,
-    middleRadius: 65,
+    width: 260,
+    height: 260,
+    outerRadius: 130,
+    middleRadius: 78,
     innerRadius: 34,
     duration: 5000,
   },
@@ -115,11 +115,11 @@ export default class Hazard {
     let bodyH = def.height
     if (type === 'pool_jet') {
       if (this._jetDir === 'down_left' || this._jetDir === 'down_right') {
-        bodyW = 120
-        bodyH = 130
+        bodyW = 155
+        bodyH = 155
       } else {
-        bodyW = (this._jetDir === 'down') ? 80 : 135
-        bodyH = (this._jetDir === 'down') ? 135 : 80
+        bodyW = (this._jetDir === 'down') ? 100 : 170
+        bodyH = (this._jetDir === 'down') ? 160 : 100
       }
     } else if (type === 'splash_zone' && this._splashScale !== 1.0) {
       bodyW = Math.round(def.width * this._splashScale)
