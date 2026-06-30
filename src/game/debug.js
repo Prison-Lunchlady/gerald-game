@@ -1,4 +1,4 @@
-export const BUILD_VERSION = 'balance-1'
+export const BUILD_VERSION = 'force-fix-1'
 export const DEBUG_GERALD = true
 
 export function debugLog(event, data = {}) {
@@ -30,6 +30,7 @@ export function getSceneDebugSnapshot(scene, extra = {}) {
       vx: gerald.body ? Math.round(gerald.body.velocity.x) : null,
       vy: gerald.body ? Math.round(gerald.body.velocity.y) : null,
     } : null,
+    activeForce: scene._lastAppliedForce || null,
     ...extra,
   }
 }

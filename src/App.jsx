@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import Phaser from 'phaser'
 import { GAME_CONFIG } from './game/config'
+import { DEBUG_GERALD } from './game/debug'
 
 export default function App() {
   const gameRef = useRef(null)
@@ -13,12 +14,14 @@ export default function App() {
       ...GAME_CONFIG,
       parent: containerRef.current,
     })
+    if (DEBUG_GERALD) window.__GERALD_GAME = gameRef.current
 
     return () => {
       if (gameRef.current) {
         gameRef.current.destroy(true)
         gameRef.current = null
       }
+      if (DEBUG_GERALD && window.__GERALD_GAME) delete window.__GERALD_GAME
     }
   }, [])
 

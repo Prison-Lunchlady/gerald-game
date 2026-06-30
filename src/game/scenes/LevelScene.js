@@ -5,7 +5,7 @@ import Hazard, { HAZARD_TYPES } from '../objects/Hazard'
 import { LEVELS, LEVEL_ORDER } from '../data/levels'
 import { GAME_WIDTH, GAME_HEIGHT } from '../constants'
 import { loadSave, saveSave } from '../data/saveData'
-import { debugLog, getSceneDebugSnapshot } from '../debug'
+import { DEBUG_GERALD, debugLog, getSceneDebugSnapshot } from '../debug'
 
 const WATER_TOP = 150
 const POOL_BOTTOM = GAME_HEIGHT - 50
@@ -53,6 +53,11 @@ export default class LevelScene extends Phaser.Scene {
     this._hazardSequenceIdx = 0
     this._transitioning = false
     this._lastDebugAt = 0
+    this._envVelocityX = 0
+    this._envVelocityY = 0
+    this._lastAppliedForce = null
+    this._forceDebugZones = []
+    this._forceDebugCircles = []
 
     debugLog('LevelScene.create', getSceneDebugSnapshot(this))
 
@@ -75,6 +80,7 @@ export default class LevelScene extends Phaser.Scene {
 
     this.physics.add.overlap(this.gerald, this.collectibles, this._onCollect, null, this)
     this.physics.add.overlap(this.gerald, this.hazardPhysicsGroup, this._onPhysicsHazardHit, null, this)
+    this._createForceDebugOverlay()
 
     this.input.on('pointerdown', (pointer, currentlyOver) => {
       if (this.isGameOver || this.isWon) return
@@ -564,14 +570,103 @@ export default class LevelScene extends Phaser.Scene {
     this.splashZones = []
     this.jetZones = []
     this.vacuumZones = []
+    if (this.forceDebugGfx) {
+      try { this.forceDebugGfx.destroy() } catch {}
+      this.forceDebugGfx = null
+    }
+    if (this.forceDebugText) {
+      try { this.forceDebugText.destroy() } catch {}
+      this.forceDebugText = null
+    }
   }
 
   _getJetVector(dir) {
-    if (dir === 'right') return { x: 1, y: 0.08 }
-    if (dir === 'left') return { x: -1, y: 0.08 }
+    if (dir === 'right') return { x: 1, y: 0.18 }
+    if (dir === 'left') return { x: -1, y: 0.18 }
     if (dir === 'down_left') return { x: -0.62, y: 0.95 }
     if (dir === 'down_right') return { x: 0.62, y: 0.95 }
     return { x: 0, y: 1 }
+  }
+
+  _createForceDebugOverlay() {
+    if (!DEBUG_GERALD) return
+    this.forceDebugGfx = this.add.graphics().setDepth(27)
+    this.forceDebugText = this.add.text(10, 76, '', {
+      fontSize: '9px',
+      fontFamily: 'monospace',
+      color: '#ffffff',
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      padding: { x: 4, y: 3 },
+    }).setDepth(60)
+  }
+
+  _applyEnvironmentalForce(forceX, forceY, delta, sources) {
+    if (!this.gerald || !this.gerald.body) return
+
+    const dt = Math.min(delta / 1000, 0.05)
+    const hasForceX = Math.abs(forceX) > 0.1
+    const hasForceY = Math.abs(forceY) > 0.1
+
+    if (hasForceX) {
+      this._envVelocityX = Phaser.Math.Clamp(this._envVelocityX + forceX * dt, -240, 240)
+    } else {
+      this._envVelocityX *= Math.pow(0.08, dt)
+      if (Math.abs(this._envVelocityX) < 2) this._envVelocityX = 0
+    }
+
+    if (hasForceY) {
+      this._envVelocityY = Phaser.Math.Clamp(this._envVelocityY + forceY * dt, -135, 210)
+    } else {
+      this._envVelocityY *= Math.pow(0.10, dt)
+      if (Math.abs(this._envVelocityY) < 2) this._envVelocityY = 0
+    }
+
+    const currentVX = this.gerald.body.velocity.x
+    const currentVY = this.gerald.body.velocity.y
+    const nextVX = Phaser.Math.Clamp(currentVX + this._envVelocityX, -430, 430)
+    const nextVY = Phaser.Math.Clamp(currentVY + this._envVelocityY, -440, this.gerald.maxDownVelocity + 155)
+
+    this.gerald.setVelocityX(nextVX)
+    this.gerald.setVelocityY(nextVY)
+
+    this._lastAppliedForce = {
+      x: Math.round(forceX),
+      y: Math.round(forceY),
+      envVX: Math.round(this._envVelocityX),
+      envVY: Math.round(this._envVelocityY),
+      finalVX: Math.round(nextVX),
+      finalVY: Math.round(nextVY),
+      sources: sources || [],
+    }
+  }
+
+  _updateForceDebugOverlay() {
+    if (!DEBUG_GERALD || !this.forceDebugGfx || !this.forceDebugText || !this.gerald || !this.gerald.body) return
+
+    const g = this.forceDebugGfx
+    g.clear()
+
+    this._forceDebugZones.forEach(zone => {
+      g.lineStyle(zone.overlap ? 3 : 1, zone.overlap ? 0xffff33 : 0x00ccff, zone.overlap ? 0.9 : 0.55)
+      g.strokeRect(zone.x, zone.y, zone.width, zone.height)
+    })
+
+    this._forceDebugCircles.forEach(circle => {
+      g.lineStyle(circle.overlap ? 3 : 1, circle.overlap ? 0xffff33 : 0xbb66ff, circle.overlap ? 0.9 : 0.55)
+      g.strokeCircle(circle.x, circle.y, circle.r)
+      g.lineStyle(1, 0xdd99ff, 0.4)
+      g.strokeCircle(circle.x, circle.y, circle.middleR)
+      g.strokeCircle(circle.x, circle.y, circle.innerR)
+    })
+
+    const f = this._lastAppliedForce || { x: 0, y: 0, envVX: 0, envVY: 0, sources: [] }
+    const sourceText = f.sources && f.sources.length ? f.sources.join('+') : 'none'
+    this.forceDebugText.setText([
+      `vel ${Math.round(this.gerald.body.velocity.x)},${Math.round(this.gerald.body.velocity.y)}`,
+      `force ${f.x},${f.y}`,
+      `env ${f.envVX},${f.envVY}`,
+      `active ${sourceText}`,
+    ])
   }
 
   // --- MAIN UPDATE LOOP ---
@@ -645,6 +740,12 @@ export default class LevelScene extends Phaser.Scene {
       this.drownMeter = Math.min(100, this.drownMeter + baseDrownRate * 0.5 * (delta / 1000))
     }
 
+    let environmentalForceX = 0
+    let environmentalForceY = 0
+    const environmentalSources = []
+    this._forceDebugZones = []
+    this._forceDebugCircles = []
+
     // Splash zone continuous damage — only during the active phase
     this.splashZones = this.splashZones.filter(zone => {
       if (!zone.active) return false
@@ -665,16 +766,24 @@ export default class LevelScene extends Phaser.Scene {
       if (zone._jetPhase === 'active') {
         const zBounds = this._getHazardBounds(zone)
         const gBounds = this.gerald.getBounds()
-        if (zBounds && Phaser.Geom.Rectangle.Overlaps(zBounds, gBounds)) {
+        const overlaps = zBounds && Phaser.Geom.Rectangle.Overlaps(zBounds, gBounds)
+        if (zBounds) {
+          this._forceDebugZones.push({
+            x: zBounds.x,
+            y: zBounds.y,
+            width: zBounds.width,
+            height: zBounds.height,
+            overlap: !!overlaps,
+          })
+        }
+        if (overlaps) {
           const resist = this.gerald.jetResistMultiplier || 1.0
           const str = zone._jetStrength * resist
           const dir = zone._jetDir || 'down'
           const vec = this._getJetVector(dir)
-          const dt = delta / 1000
-          const vx = this.gerald.body.velocity.x + vec.x * str * dt
-          const vy = this.gerald.body.velocity.y + vec.y * str * dt
-          this.gerald.setVelocityX(Phaser.Math.Clamp(vx, -380, 380))
-          this.gerald.setVelocityY(Phaser.Math.Clamp(vy, -420, this.gerald.maxDownVelocity + 115))
+          environmentalForceX += vec.x * str
+          environmentalForceY += vec.y * str
+          if (!environmentalSources.includes('jet')) environmentalSources.push('jet')
           const dmgRate = this.levelDef.jetDrownRate || zone.definition.drownRate
           const dmg = dmgRate * (delta / 1000) * this.gerald.hazardDamageMultiplier
           this.drownMeter = Math.min(100, this.drownMeter + dmg)
@@ -702,6 +811,14 @@ export default class LevelScene extends Phaser.Scene {
         const outerR = zone.definition.outerRadius || 80
         const middleR = zone.definition.middleRadius || 55
         const innerR = zone.definition.innerRadius || 38
+        this._forceDebugCircles.push({
+          x: zone.x,
+          y: zone.y,
+          r: outerR,
+          middleR,
+          innerR,
+          overlap: dist < outerR,
+        })
         if (dist < outerR && dist > 2) {
           const angle = Phaser.Math.Angle.Between(this.gerald.x, this.gerald.y, zone.x, zone.y)
           const escape = this.gerald.vacuumEscapeMultiplier || 1.0
@@ -715,10 +832,9 @@ export default class LevelScene extends Phaser.Scene {
             : isMiddle
               ? (zone.definition.drownRateMiddle || 3.5)
               : (zone.definition.drownRateOuter || 0.5)
-          const vx = Math.cos(angle) * pullStr * (delta / 1000)
-          const vy = Math.sin(angle) * pullStr * (delta / 1000)
-          this.gerald.setVelocityX(Phaser.Math.Clamp(this.gerald.body.velocity.x + vx, -390, 390))
-          this.gerald.setVelocityY(Phaser.Math.Clamp(this.gerald.body.velocity.y + vy, -430, this.gerald.maxDownVelocity + 95))
+          environmentalForceX += Math.cos(angle) * pullStr
+          environmentalForceY += Math.sin(angle) * pullStr
+          if (!environmentalSources.includes('vacuum')) environmentalSources.push('vacuum')
           const dmgResist = isInner ? Math.max(escape, 0.6) : 1
           const dmg = drownRate * (delta / 1000) * this.gerald.hazardDamageMultiplier * dmgResist
           this.drownMeter = Math.min(100, this.drownMeter + dmg)
@@ -736,6 +852,9 @@ export default class LevelScene extends Phaser.Scene {
       }
       return true
     })
+
+    this._applyEnvironmentalForce(environmentalForceX, environmentalForceY, delta, environmentalSources)
+    this._updateForceDebugOverlay()
 
     // Drown warning blink
     if (this.drownMeter > 75 && !this.drownBlinkEvent) {

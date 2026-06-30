@@ -60,7 +60,7 @@ export const UPGRADES = {
     cost: 450,
     icon: '🌀',
     color: 0x8844ff,
-    unlockAfterLevel: 'vacuum_trouble',
+    unlockAfterLevel: 'pool_jet_panic',
     statChanges: { vacuumEscapeMultiplier: 0.60 },
   },
 }
