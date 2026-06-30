@@ -13,8 +13,8 @@ export const HAZARD_TYPES = {
     height: 84,
   },
   floating_leaf: {
-    drownIncrease: 0,
-    speed: 60,
+    drownIncrease: 1,
+    speed: 68,
     scoreOnDodge: 5,
     closeCallDistance: 40,
     closeCallScore: 25,
@@ -33,8 +33,8 @@ export const HAZARD_TYPES = {
     height: 36,
   },
   kickboard: {
-    drownIncrease: 2,
-    speed: 82,
+    drownIncrease: 3,
+    speed: 92,
     scoreOnDodge: 10,
     closeCallDistance: 48,
     closeCallScore: 30,
@@ -43,8 +43,8 @@ export const HAZARD_TYPES = {
     height: 24,
   },
   floating_ring: {
-    drownIncrease: 2,
-    speed: 74,
+    drownIncrease: 3,
+    speed: 84,
     scoreOnDodge: 12,
     closeCallDistance: 54,
     closeCallScore: 35,
