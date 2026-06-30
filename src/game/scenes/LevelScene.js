@@ -677,6 +677,11 @@ export default class LevelScene extends Phaser.Scene {
           // Debounced floating text
           if (!zone._txtShown) {
             zone._txtShown = true
+            debugLog('LevelScene.jetForce', getSceneDebugSnapshot(this, {
+              dir,
+              strength: Math.round(str),
+              resist,
+            }))
             this._showFloatingText(this.gerald.x, this.gerald.y - 30, 'JET PUSH!', '#00AAFF')
             this.time.delayedCall(1800, () => { if (zone.active) zone._txtShown = false })
           }
@@ -715,6 +720,11 @@ export default class LevelScene extends Phaser.Scene {
           this.drownMeter = Math.min(100, this.drownMeter + dmg)
           if (!zone._txtShown) {
             zone._txtShown = true
+            debugLog('LevelScene.vacuumPull', getSceneDebugSnapshot(this, {
+              tier: isInner ? 'inner' : isMiddle ? 'middle' : 'outer',
+              strength: Math.round(pullStr),
+              escape,
+            }))
             this._showFloatingText(this.gerald.x, this.gerald.y - 30, isInner ? 'CAUGHT!' : isMiddle ? 'PULL!' : 'TUG!', '#9966FF')
             this.time.delayedCall(1500, () => { if (zone.active) zone._txtShown = false })
           }
