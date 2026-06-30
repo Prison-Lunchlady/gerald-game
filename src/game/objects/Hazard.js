@@ -150,7 +150,7 @@ export default class Hazard {
     scene.physics.add.existing(this._body)
     this._body.body.allowGravity = false
     this._body.setDepth(9)
-    this._body.body.setVelocityX(-def.speed)
+    this._body.body.setVelocityX(0)
     this._body._hazardRef = this
 
     // --- Visual graphics ---
@@ -644,6 +644,10 @@ export default class Hazard {
   update(delta) {
     if (this._dead) return
     if (!this._body || !this._body.active) return
+
+    if (this.definition.speed > 0) {
+      this._body.setPosition(this._body.x - this.definition.speed * (delta / 1000), this._body.y)
+    }
 
     const bx = this._body.x
     const by = this._body.y
