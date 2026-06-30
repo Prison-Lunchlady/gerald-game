@@ -1,4 +1,4 @@
-export const BUILD_VERSION = 'final-tuning-1'
+export const BUILD_VERSION = 'visual-balance-1'
 export const DEBUG_GERALD = true
 
 export function debugLog(event, data = {}) {

@@ -339,6 +339,9 @@ export default class LevelScene extends Phaser.Scene {
     if ((this.levelDef.order || 1) <= 4) {
       this.time.delayedCall(1600, () => this._spawnCollectible('bubble'))
     }
+    for (let i = 0; i < (this.levelDef.earlyCoinCount || 0); i++) {
+      this.time.delayedCall(1800 + i * 1700, () => this._spawnCollectible('coin'))
+    }
 
     this.time.delayedCall(1200, () => this._spawnEarlyFloatingObstacle())
     if ((this.levelDef.order || 1) >= 3) {
@@ -922,13 +925,19 @@ export default class LevelScene extends Phaser.Scene {
     return 0.12
   }
 
+  _getEffectiveSurfaceFatigueStep() {
+    const resistance = Phaser.Math.Clamp(this.gerald?.surfaceFatigueResistance || 0, 0, 0.32)
+    return this._getSurfaceFatigueStep() * (1 - resistance)
+  }
+
   _getSurfaceRecoveryMultiplier() {
-    const step = this._getSurfaceFatigueStep()
-    return Phaser.Math.Clamp(1 - this.surfaceBreathCount * step, 0.38, 1)
+    const step = this._getEffectiveSurfaceFatigueStep()
+    const bonus = Phaser.Math.Clamp(this.gerald?.surfaceRecoveryBonus || 1, 1, 1.22)
+    return Phaser.Math.Clamp((1 - this.surfaceBreathCount * step) * bonus, 0.38, 1.18)
   }
 
   _getSurfaceSwimMultiplier() {
-    const step = this._getSurfaceFatigueStep()
+    const step = this._getEffectiveSurfaceFatigueStep()
     return Phaser.Math.Clamp(1 - this.surfaceBreathCount * step * 0.45, 0.72, 1)
   }
 
@@ -960,7 +969,8 @@ export default class LevelScene extends Phaser.Scene {
     const base = order >= 8 ? 118 : order >= 7 ? 96 : order >= 6 ? 76 : 56
     const fatigueBoost = Math.min(this.surfaceBreathCount, 5) * (order >= 7 ? 9 : 6)
     const wave = Math.sin((this.time.now || 0) / 220) * 14
-    const force = base + fatigueBoost + secondsHeld * 18 + wave
+    const resistance = Phaser.Math.Clamp(this.gerald?.surfaceTurbulenceResistance || 0, 0, 0.24)
+    const force = (base + fatigueBoost + secondsHeld * 18 + wave) * (1 - resistance)
     if (order >= 7 && this._surfaceHoldMs > 1500) {
       const dmg = (0.45 + this.surfaceBreathCount * 0.08) * (delta / 1000)
       this.drownMeter = Math.min(100, this.drownMeter + dmg)

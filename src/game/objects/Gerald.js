@@ -42,6 +42,9 @@ export default class Gerald extends Phaser.Physics.Arcade.Sprite {
     this.jetResistMultiplier = 1.0
     this.vacuumEscapeMultiplier = 1.0
     this.surfaceSwimMultiplier = 1.0
+    this.surfaceRecoveryBonus = 1.0
+    this.surfaceFatigueResistance = 0
+    this.surfaceTurbulenceResistance = 0
   }
 
   applyUpgrades(purchasedUpgrades) {
@@ -58,6 +61,9 @@ export default class Gerald extends Phaser.Physics.Arcade.Sprite {
     this.snorkelVisible = false
     this.jetResistMultiplier = 1.0
     this.vacuumEscapeMultiplier = 1.0
+    this.surfaceRecoveryBonus = 1.0
+    this.surfaceFatigueResistance = 0
+    this.surfaceTurbulenceResistance = 0
 
     this._destroyUpgradeGfx()
 
@@ -67,21 +73,34 @@ export default class Gerald extends Phaser.Physics.Arcade.Sprite {
       return
     }
 
+    let flotationItemCount = 0
+
     purchasedUpgrades.forEach(id => {
       switch(id) {
         case 'tiny_arm_floaties':
           this.sinkSpeedMultiplier *= 0.87
           this.drownFillRateMultiplier *= 0.70
           this.floatiesVisible = true
+          flotationItemCount += 1
+          this.surfaceRecoveryBonus += 0.04
+          this.surfaceFatigueResistance += 0.04
+          this.surfaceTurbulenceResistance += 0.03
           break
         case 'better_bob':
           this.swimBoostMultiplier = Math.min(this.swimBoostMultiplier * 1.12, 1.25)
           this.bobberVisible = true
+          flotationItemCount += 1
+          this.surfaceRecoveryBonus += 0.03
+          this.surfaceFatigueResistance += 0.03
           break
         case 'pool_noodle_belt':
           this.sinkSpeedMultiplier *= 0.78
           this.passiveFloatForce = 7
           this.noodleVisible = true
+          flotationItemCount += 1
+          this.surfaceRecoveryBonus += 0.06
+          this.surfaceFatigueResistance += 0.06
+          this.surfaceTurbulenceResistance += 0.05
           break
         case 'wave_resistance':
           this.hazardDamageMultiplier *= 0.60
@@ -97,6 +116,20 @@ export default class Gerald extends Phaser.Physics.Arcade.Sprite {
           break
       }
     })
+
+    if (flotationItemCount >= 2) {
+      this.surfaceRecoveryBonus += 0.06
+      this.surfaceFatigueResistance += 0.06
+      this.surfaceTurbulenceResistance += 0.04
+    }
+    if (flotationItemCount >= 3) {
+      this.surfaceRecoveryBonus += 0.03
+      this.surfaceFatigueResistance += 0.03
+      this.surfaceTurbulenceResistance += 0.02
+    }
+    this.surfaceRecoveryBonus = Math.min(this.surfaceRecoveryBonus, 1.22)
+    this.surfaceFatigueResistance = Math.min(this.surfaceFatigueResistance, 0.28)
+    this.surfaceTurbulenceResistance = Math.min(this.surfaceTurbulenceResistance, 0.20)
 
     this.sinkSpeedMultiplier = Math.max(0.65, Math.min(this.sinkSpeedMultiplier, 1.0))
     this.sinkSpeed = this.baseSinkSpeed * this.sinkSpeedMultiplier
@@ -132,32 +165,51 @@ export default class Gerald extends Phaser.Physics.Arcade.Sprite {
 
     if (this.flippersVisible && this.scene) {
       this.flippersGfx = this.scene.add.graphics()
-      this.flippersGfx.fillStyle(0x2266ff, 0.9)
-      this.flippersGfx.fillTriangle(-17, 22, -5, 22, -22, 40)
-      this.flippersGfx.fillTriangle(5, 22, 17, 22, 22, 40)
-      this.flippersGfx.lineStyle(2, 0x003399, 0.9)
-      this.flippersGfx.strokeTriangle(-17, 22, -5, 22, -22, 40)
-      this.flippersGfx.strokeTriangle(5, 22, 17, 22, 22, 40)
+      this.flippersGfx.fillStyle(0x1f7cff, 0.94)
+      this.flippersGfx.fillTriangle(-20, 20, -6, 24, -31, 48)
+      this.flippersGfx.fillTriangle(6, 24, 20, 20, 31, 48)
+      this.flippersGfx.lineStyle(2, 0x003c99, 0.9)
+      this.flippersGfx.strokeTriangle(-20, 20, -6, 24, -31, 48)
+      this.flippersGfx.strokeTriangle(6, 24, 20, 20, 31, 48)
+      this.flippersGfx.lineBetween(-15, 25, -27, 43)
+      this.flippersGfx.lineBetween(15, 25, 27, 43)
+      this.flippersGfx.lineStyle(3, 0x001f66, 0.82)
+      this.flippersGfx.lineBetween(-18, 21, -7, 24)
+      this.flippersGfx.lineBetween(7, 24, 18, 21)
       this.flippersGfx.setDepth(this.depth + 1)
     }
 
     if (this.gogglesVisible && this.scene) {
       this.gogglesGfx = this.scene.add.graphics()
-      this.gogglesGfx.lineStyle(3, 0x00ddff, 0.95)
-      this.gogglesGfx.strokeCircle(-10, -8, 9)
-      this.gogglesGfx.strokeCircle(10, -8, 9)
-      this.gogglesGfx.lineStyle(2, 0x003355, 0.95)
-      this.gogglesGfx.lineBetween(-1, -8, 1, -8)
+      this.gogglesGfx.lineStyle(3, 0x203040, 0.85)
+      this.gogglesGfx.lineBetween(-27, -8, -18, -8)
+      this.gogglesGfx.lineBetween(18, -8, 27, -8)
+      this.gogglesGfx.fillStyle(0x9ff5ff, 0.82)
+      this.gogglesGfx.fillRoundedRect(-18, -16, 15, 13, 5)
+      this.gogglesGfx.fillRoundedRect(3, -16, 15, 13, 5)
+      this.gogglesGfx.lineStyle(3, 0x00a6d6, 0.96)
+      this.gogglesGfx.strokeRoundedRect(-18, -16, 15, 13, 5)
+      this.gogglesGfx.strokeRoundedRect(3, -16, 15, 13, 5)
+      this.gogglesGfx.lineStyle(2, 0x203040, 0.95)
+      this.gogglesGfx.lineBetween(-3, -10, 3, -10)
+      this.gogglesGfx.fillStyle(0xffffff, 0.55)
+      this.gogglesGfx.fillCircle(-13, -13, 2)
+      this.gogglesGfx.fillCircle(8, -13, 2)
       this.gogglesGfx.setDepth(this.depth + 2)
     }
 
     if (this.snorkelVisible && this.scene) {
       this.snorkelGfx = this.scene.add.graphics()
-      this.snorkelGfx.lineStyle(5, 0xff8844, 0.95)
-      this.snorkelGfx.lineBetween(22, -16, 30, -32)
-      this.snorkelGfx.lineBetween(30, -32, 39, -32)
-      this.snorkelGfx.fillStyle(0xffff66, 1)
-      this.snorkelGfx.fillRoundedRect(36, -38, 9, 12, 3)
+      this.snorkelGfx.lineStyle(5, 0xff8a2a, 0.96)
+      this.snorkelGfx.lineBetween(19, -8, 27, -19)
+      this.snorkelGfx.lineBetween(27, -19, 27, -36)
+      this.snorkelGfx.lineBetween(27, -36, 39, -36)
+      this.snorkelGfx.fillStyle(0xffd84d, 1)
+      this.snorkelGfx.fillRoundedRect(36, -42, 10, 12, 3)
+      this.snorkelGfx.fillStyle(0x3366cc, 0.95)
+      this.snorkelGfx.fillRoundedRect(15, -7, 13, 5, 3)
+      this.snorkelGfx.lineStyle(2, 0x9a3d00, 0.9)
+      this.snorkelGfx.lineBetween(27, -34, 39, -34)
       this.snorkelGfx.setDepth(this.depth + 2)
     }
 

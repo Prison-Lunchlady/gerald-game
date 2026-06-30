@@ -368,24 +368,27 @@ export default class Hazard {
     g.clear()
     const type = this.hazardType
 
-    // ---- CANNONBALL WAVE ----
+    // ---- POOL TORPEDO WAVE ----
     if (type === 'cannonball_wave') {
-      // Circular rolling ball
-      g.fillStyle(0x000000, 0.75)
-      g.fillCircle(0, 0, 18)
-      g.fillStyle(0x444444, 0.85)
-      g.fillCircle(-5, -5, 12)
-      // Fuse
-      g.lineStyle(2, 0x886600, 1)
-      g.lineBetween(0, -18, 8, -28)
-      // Highlight
-      g.fillStyle(0xffffff, 0.25)
-      g.fillCircle(-6, -6, 5)
-      // Splash wave lines below
-      g.lineStyle(3, 0x44aaff, 0.8)
+      const y = -8
+      g.fillStyle(0xffe14a, 0.96)
+      g.fillRoundedRect(-24, y - 9, 44, 18, 9)
+      g.fillStyle(0xff6f3d, 0.96)
+      g.fillCircle(20, y, 9)
+      g.fillStyle(0x1bd1ff, 0.95)
+      g.fillTriangle(-23, y - 9, -34, y - 18, -27, y)
+      g.fillTriangle(-23, y + 9, -34, y + 18, -27, y)
+      g.fillStyle(0x26d96c, 0.95)
+      g.fillTriangle(-24, y - 6, -36, y, -24, y + 6)
+      g.lineStyle(2, 0xf04c2f, 0.95)
+      g.lineBetween(-9, y - 8, -9, y + 8)
+      g.lineBetween(4, y - 8, 4, y + 8)
+      g.fillStyle(0xffffff, 0.45)
+      g.fillEllipse(10, y - 4, 14, 5)
+      g.lineStyle(2, 0x1788bb, 0.72)
       for (let i = 0; i < 3; i++) {
-        const yOff = 22 + i * 9
-        g.lineBetween(-20 + i * 4, yOff, 20 - i * 4, yOff)
+        const yOff = 18 + i * 9
+        g.lineBetween(-24 + i * 5, yOff, 24 - i * 4, yOff)
       }
       return
     }
@@ -421,14 +424,18 @@ export default class Hazard {
 
     // ---- KICKBOARD ----
     if (type === 'kickboard') {
-      g.fillStyle(0xff8844, 0.95)
-      g.fillRoundedRect(-28, -12 + this._leafOffsetY, 56, 24, 8)
-      g.fillStyle(0xffcc66, 0.8)
-      g.fillRoundedRect(-18, -6 + this._leafOffsetY, 36, 8, 4)
-      g.lineStyle(2, 0xaa4400, 0.75)
-      g.strokeRoundedRect(-28, -12 + this._leafOffsetY, 56, 24, 8)
-      g.lineStyle(2, 0xffffff, 0.35)
-      g.lineBetween(-20, -9 + this._leafOffsetY, 18, -9 + this._leafOffsetY)
+      const y = this._leafOffsetY
+      g.fillStyle(0x21d0c4, 0.97)
+      g.fillRoundedRect(-32, -14 + y, 64, 28, 9)
+      g.fillStyle(0x78f06d, 0.92)
+      g.fillRoundedRect(-25, -10 + y, 50, 8, 4)
+      g.fillStyle(0x006f80, 0.82)
+      g.fillRoundedRect(-21, 3 + y, 14, 6, 3)
+      g.fillRoundedRect(7, 3 + y, 14, 6, 3)
+      g.lineStyle(2, 0x006f80, 0.78)
+      g.strokeRoundedRect(-32, -14 + y, 64, 28, 9)
+      g.lineStyle(2, 0xffffff, 0.55)
+      g.lineBetween(-21, -9 + y, 21, -9 + y)
       return
     }
 
