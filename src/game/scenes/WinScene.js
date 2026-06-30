@@ -13,7 +13,7 @@ const COMPLETION_MESSAGES = {
   pool_jet_panic: "Gerald escaped the pool jets.",
   vacuum_trouble: "Gerald avoided becoming pool debris.",
   deep_end_warning: "Gerald reached the deep end.",
-  boss_suck_o_matic: "Gerald defeated the Suck-O-Matic 3000!",
+  boss_suck_o_matic: "Gerald defeated the deep end.",
 }
 
 export default class WinScene extends Phaser.Scene {

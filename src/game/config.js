@@ -6,6 +6,7 @@ import LevelScene from './scenes/LevelScene'
 import UpgradeShopScene from './scenes/UpgradeShopScene'
 import GameOverScene from './scenes/GameOverScene'
 import WinScene from './scenes/WinScene'
+import FinalVictoryScene from './scenes/FinalVictoryScene'
 
 export { GAME_WIDTH, GAME_HEIGHT } from './constants'
 
@@ -29,6 +30,7 @@ export const GAME_CONFIG = {
     UpgradeShopScene,
     GameOverScene,
     WinScene,
+    FinalVictoryScene,
   ],
   scale: {
     mode: Phaser.Scale.FIT,

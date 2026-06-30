@@ -63,11 +63,11 @@ export default class GameOverScene extends Phaser.Scene {
       color: '#ffee00', stroke: '#664400', strokeThickness: 4,
     }).setOrigin(0.5)
 
-    this.add.text(GAME_WIDTH / 2, 368, `Gerald Points Earned: ${this.finalGP} 💰`, {
+    this.add.text(GAME_WIDTH / 2, 368, `Gerald Points Earned: ${this.finalGP}`, {
       fontSize: '15px', fontFamily: 'Arial, sans-serif', color: '#ffdd88',
     }).setOrigin(0.5)
 
-    this.add.text(GAME_WIDTH / 2, 390, `💰 Total GP: ${this.registry.get('geraldPoints') || this.finalGP}`, {
+    this.add.text(GAME_WIDTH / 2, 390, `Total GP: ${this.registry.get('geraldPoints') || this.finalGP}`, {
       fontSize: '13px', fontFamily: 'Arial, sans-serif', color: '#aabbcc',
     }).setOrigin(0.5)
 
@@ -86,7 +86,7 @@ export default class GameOverScene extends Phaser.Scene {
     })
 
     // Pool Bag button
-    const shopBtn = this.add.text(GAME_WIDTH / 2, 518, "🎒 GERALD'S POOL BAG", {
+    const shopBtn = this.add.text(GAME_WIDTH / 2, 518, "GERALD'S POOL BAG", {
       fontSize: '18px', fontFamily: 'Impact, Arial Black, sans-serif',
       color: '#ffffff', backgroundColor: '#0055bb',
       padding: { x: 18, y: 10 }, stroke: '#002277', strokeThickness: 3,
@@ -98,7 +98,7 @@ export default class GameOverScene extends Phaser.Scene {
       this.scene.start('UpgradeShopScene', { returnTo: 'GameRetry' })
     })
 
-    this.add.text(GAME_WIDTH / 2, 578, '← Main Menu', {
+    this.add.text(GAME_WIDTH / 2, 578, '< Main Menu', {
       fontSize: '14px', fontFamily: 'Arial, sans-serif', color: '#aaaaff',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true })
     .on('pointerdown', () => {

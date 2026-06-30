@@ -14,14 +14,15 @@ export default function App() {
       ...GAME_CONFIG,
       parent: containerRef.current,
     })
-    if (DEBUG_GERALD) window.__GERALD_GAME = gameRef.current
+    const allowTestHook = DEBUG_GERALD && window.location.search.includes('codexTest=1')
+    if (allowTestHook) window.__GERALD_GAME = gameRef.current
 
     return () => {
       if (gameRef.current) {
         gameRef.current.destroy(true)
         gameRef.current = null
       }
-      if (DEBUG_GERALD && window.__GERALD_GAME) delete window.__GERALD_GAME
+      if (window.__GERALD_GAME) delete window.__GERALD_GAME
     }
   }, [])
 

@@ -40,21 +40,21 @@ export default class MenuScene extends Phaser.Scene {
       targets: gerald, y: 235, duration: 1200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
     })
 
-    this.add.text(GAME_WIDTH / 2, 285, '🪨 Gerald (he is a rock)', {
+    this.add.text(GAME_WIDTH / 2, 285, 'Gerald (he is a rock)', {
       fontSize: '13px', fontFamily: 'Arial, sans-serif', color: '#cceeff',
     }).setOrigin(0.5)
 
     // GP display
     const gp = this.saveData.geraldPoints || this.registry.get('geraldPoints') || 0
     if (gp > 0) {
-      this.add.text(GAME_WIDTH / 2, 308, `💰 Gerald Points: ${gp}`, {
+      this.add.text(GAME_WIDTH / 2, 308, `Gerald Points: ${gp}`, {
         fontSize: '14px', fontFamily: 'Arial, sans-serif', color: '#ffdd00',
       }).setOrigin(0.5)
     }
 
     // Continue Game button (shown if player has progress)
     if (this._hasContinue) {
-      const contBtn = this.add.text(GAME_WIDTH / 2, 322, '▶  Continue Game', {
+      const contBtn = this.add.text(GAME_WIDTH / 2, 322, '> Continue Game', {
         fontSize: '17px', fontFamily: 'Impact, Arial Black, sans-serif',
         color: '#ffdd00', backgroundColor: '#004400',
         padding: { x: 20, y: 9 },
@@ -73,12 +73,12 @@ export default class MenuScene extends Phaser.Scene {
     // Level select panel
     this._drawLevelSelect()
 
-    this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 84, 'SPACE / TAP = BOB UP   |   ← → = MOVE', {
+    this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 84, 'SPACE / TAP = BOB UP   |   LEFT / RIGHT = MOVE', {
       fontSize: '11px', fontFamily: 'Arial, sans-serif', color: '#aaddff',
     }).setOrigin(0.5)
 
     // Pool bag button
-    const shopBtn = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 52, "🎒 Gerald's Pool Bag", {
+    const shopBtn = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 52, "Gerald's Pool Bag", {
       fontSize: '14px', fontFamily: 'Impact, Arial Black, sans-serif',
       color: '#ffffff', backgroundColor: '#003388',
       padding: { x: 14, y: 7 },
@@ -107,13 +107,14 @@ export default class MenuScene extends Phaser.Scene {
   _drawLevelSelect() {
     const save = this.saveData
     const completed = save.completedLevels || []
-    const playableLevels = ['shallow_end', 'floatie_training', 'bubble_basics']
+    const playableLevels = LEVEL_ORDER.filter(id => LEVELS[id] && !LEVELS[id].comingSoon)
 
     let panelY = this._hasContinue ? 354 : 334
-    const panelH = 28 * playableLevels.length + 10
+    const rowH = 20
+    const panelH = rowH * playableLevels.length + 10
     const panelBg = this.add.graphics()
     panelBg.fillStyle(0x001a44, 0.7)
-    panelBg.fillRoundedRect(20, panelY - 6, GAME_WIDTH - 40, panelH, 10)
+    panelBg.fillRoundedRect(16, panelY - 6, GAME_WIDTH - 32, panelH, 8)
 
     playableLevels.forEach((id, idx) => {
       const def = LEVELS[id]
@@ -121,14 +122,14 @@ export default class MenuScene extends Phaser.Scene {
       const isUnlocked = def.unlockAfter === null || completed.includes(def.unlockAfter)
       const isNext = isUnlocked && !isCompleted
 
-      const y = panelY + idx * 28
+      const y = panelY + idx * rowH
 
-      const icon = isCompleted ? '✅' : isUnlocked ? '▶' : '🔒'
+      const icon = isCompleted ? '[OK]' : isUnlocked ? '>' : '[LOCK]'
       const color = isCompleted ? '#44ff88' : isUnlocked ? '#ffee00' : '#555577'
       const suffix = isCompleted && save.highScores[id] ? `  Best: ${save.highScores[id]}` : ''
 
-      const txt = this.add.text(40, y + 2, `${icon} ${def.name}${suffix}`, {
-        fontSize: '14px', fontFamily: 'Impact, Arial Black, sans-serif', color,
+      const txt = this.add.text(34, y + 2, `${icon} ${def.name}${suffix}`, {
+        fontSize: '11px', fontFamily: 'Impact, Arial Black, sans-serif', color,
       }).setDepth(5)
 
       if (isUnlocked) {
@@ -144,8 +145,8 @@ export default class MenuScene extends Phaser.Scene {
         })
 
         if (isNext) {
-          const playLabel = this.add.text(GAME_WIDTH - 44, y + 4, 'PLAY', {
-            fontSize: '12px', fontFamily: 'Impact, Arial Black, sans-serif',
+          const playLabel = this.add.text(GAME_WIDTH - 34, y + 1, 'PLAY', {
+            fontSize: '10px', fontFamily: 'Impact, Arial Black, sans-serif',
             color: '#ffffff', backgroundColor: '#005500', padding: { x: 6, y: 3 },
           }).setOrigin(1, 0).setDepth(5).setInteractive({ useHandCursor: true })
           playLabel.on('pointerdown', () => {
@@ -157,8 +158,8 @@ export default class MenuScene extends Phaser.Scene {
           })
         }
         if (isCompleted) {
-          const replayLabel = this.add.text(GAME_WIDTH - 44, y + 4, 'REPLAY', {
-            fontSize: '11px', fontFamily: 'Impact, Arial Black, sans-serif',
+          const replayLabel = this.add.text(GAME_WIDTH - 34, y + 1, 'REPLAY', {
+            fontSize: '9px', fontFamily: 'Impact, Arial Black, sans-serif',
             color: '#aaffaa', backgroundColor: '#002200', padding: { x: 5, y: 3 },
           }).setOrigin(1, 0).setDepth(5).setInteractive({ useHandCursor: true })
           replayLabel.on('pointerover', () => replayLabel.setStyle({ color: '#ffffff' }))
@@ -174,11 +175,6 @@ export default class MenuScene extends Phaser.Scene {
       }
     })
 
-    // Locked future levels teaser
-    const futureY = panelY + playableLevels.length * 28 + 8
-    this.add.text(GAME_WIDTH / 2, futureY, '+ 5 more levels coming as Gerald goes deeper...', {
-      fontSize: '11px', fontFamily: 'Arial, sans-serif', color: '#334466', fontStyle: 'italic',
-    }).setOrigin(0.5)
   }
 
   // ISSUE 12: Confirmation dialog for New Game / Reset
@@ -210,7 +206,7 @@ export default class MenuScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(62).setInteractive({ useHandCursor: true })
 
     const btnFull = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 24,
-      '[Full Reset — lose everything]', {
+      '[Full Reset - lose everything]', {
       fontSize: '13px', fontFamily: 'Impact, Arial Black, sans-serif',
       color: '#ffaaaa', backgroundColor: '#440000', padding: { x: 14, y: 9 },
     }).setOrigin(0.5).setDepth(62).setInteractive({ useHandCursor: true })
@@ -273,7 +269,7 @@ export default class MenuScene extends Phaser.Scene {
       const sparkle = this.add.text(
         Phaser.Math.Between(20, GAME_WIDTH - 20),
         Phaser.Math.Between(200, GAME_HEIGHT - 80),
-        '✦', { fontSize: '16px', color: '#ffffff', alpha: 0.4 }
+        '*', { fontSize: '16px', color: '#ffffff', alpha: 0.4 }
       )
       this.tweens.add({
         targets: sparkle, alpha: 0.1,

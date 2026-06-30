@@ -35,6 +35,7 @@ export default class LevelScene extends Phaser.Scene {
     this.saveData = save
 
     this.drownMeter = 0
+    this.isBossLevel = !!this.levelDef.isBoss
     this.score = this.registry.get('score') || 0
     this.geraldPoints = save.geraldPoints || this.registry.get('geraldPoints') || 0
     this.levelProgress = 0
@@ -58,6 +59,10 @@ export default class LevelScene extends Phaser.Scene {
     this._lastAppliedForce = null
     this._forceDebugZones = []
     this._forceDebugCircles = []
+    this.bossHealth = this.levelDef.bossHealth || 0
+    this.bossMaxHealth = this.levelDef.bossHealth || 0
+    this.bossPhase = 1
+    this.bossObj = null
 
     debugLog('LevelScene.create', getSceneDebugSnapshot(this))
 
@@ -70,6 +75,7 @@ export default class LevelScene extends Phaser.Scene {
     this._spawnGerald()
     this._createUI()
     this._createMobileControls()
+    if (this.isBossLevel) this._createBoss()
 
     this.cursors = this.input.keyboard.createCursorKeys()
     this.wasd = this.input.keyboard.addKeys({
@@ -290,6 +296,11 @@ export default class LevelScene extends Phaser.Scene {
 
   // --- SPAWN TIMERS ---
   _startSpawnTimers() {
+    if (this.isBossLevel) {
+      this._startBossTimers()
+      return
+    }
+
     const graceMs = this.levelDef.graceperiod || 3000
 
     this.time.delayedCall(graceMs, () => {
@@ -319,6 +330,160 @@ export default class LevelScene extends Phaser.Scene {
     if ((this.levelDef.order || 1) <= 4) {
       this.time.delayedCall(1600, () => this._spawnCollectible('bubble'))
     }
+  }
+
+  _startBossTimers() {
+    this.time.delayedCall(700, () => this._spawnCollectible('bubble'))
+    this.time.delayedCall(1100, () => this._spawnCollectible('power_bubble'))
+
+    this.time.addEvent({
+      delay: this.levelDef.bubbleInterval || 5200,
+      callback: () => this._spawnCollectible('bubble'),
+      callbackScope: this,
+      loop: true,
+    })
+
+    this.time.addEvent({
+      delay: this.levelDef.powerBubbleInterval || 4300,
+      callback: () => this._spawnCollectible('power_bubble'),
+      callbackScope: this,
+      loop: true,
+    })
+
+    this.hazardTimer = this.time.addEvent({
+      delay: this.levelDef.hazardInterval || 2600,
+      callback: this._bossAttack,
+      callbackScope: this,
+      loop: true,
+    })
+  }
+
+  _createBoss() {
+    this.bossHealth = this.bossMaxHealth
+    this.bossPhase = 1
+
+    this.bossObj = this.add.container(GAME_WIDTH - 100, WATER_TOP + 190).setDepth(14)
+    const body = this.add.graphics()
+    body.fillStyle(0xffaa22, 1)
+    body.fillRoundedRect(-54, -34, 108, 68, 12)
+    body.lineStyle(4, 0x552200, 1)
+    body.strokeRoundedRect(-54, -34, 108, 68, 12)
+    body.fillStyle(0x00ddff, 0.9)
+    body.fillCircle(-24, -8, 15)
+    body.fillCircle(22, -8, 15)
+    body.fillStyle(0x001a33, 0.9)
+    body.fillCircle(-24, -8, 7)
+    body.fillCircle(22, -8, 7)
+    body.fillStyle(0x222222, 1)
+    body.fillCircle(-35, 34, 13)
+    body.fillCircle(35, 34, 13)
+    body.fillStyle(0x8844ff, 0.85)
+    body.fillRoundedRect(-16, 24, 32, 18, 8)
+    body.lineStyle(7, 0x8844ff, 0.8)
+    body.beginPath()
+    body.moveTo(45, -12)
+    body.lineTo(76, -34)
+    body.lineTo(92, -18)
+    body.strokePath()
+    body.lineStyle(4, 0x33ddff, 0.75)
+    body.lineBetween(-42, 8, 42, 8)
+    this.bossObj.add(body)
+
+    const label = this.add.text(0, -54, 'SUCK-O-MATIC 3000', {
+      fontSize: '12px',
+      fontFamily: 'Impact, Arial Black, sans-serif',
+      color: '#ffee00',
+      stroke: '#331100',
+      strokeThickness: 3,
+    }).setOrigin(0.5)
+    this.bossObj.add(label)
+
+    this.bossHealthBg = this.add.graphics().setDepth(31)
+    this.bossHealthFill = this.add.graphics().setDepth(32)
+    this.bossHealthLabel = this.add.text(GAME_WIDTH / 2, 78, 'Suck-O-Matic 3000', {
+      fontSize: '10px',
+      fontFamily: 'Impact, Arial Black, sans-serif',
+      color: '#ffee00',
+      stroke: '#331100',
+      strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(33)
+    this._updateBossUI()
+
+    this.tweens.add({
+      targets: this.bossObj,
+      y: WATER_TOP + 245,
+      duration: 2200,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    })
+  }
+
+  _updateBossUI() {
+    if (!this.isBossLevel || !this.bossHealthBg || !this.bossHealthFill) return
+    const pct = Phaser.Math.Clamp(this.bossHealth / this.bossMaxHealth, 0, 1)
+    this.bossHealthBg.clear()
+    this.bossHealthBg.fillStyle(0x000000, 0.55)
+    this.bossHealthBg.fillRoundedRect(GAME_WIDTH / 2 - 96, 88, 192, 12, 4)
+    this.bossHealthBg.lineStyle(2, 0xffcc33, 0.9)
+    this.bossHealthBg.strokeRoundedRect(GAME_WIDTH / 2 - 96, 88, 192, 12, 4)
+
+    this.bossHealthFill.clear()
+    this.bossHealthFill.fillStyle(pct > 0.55 ? 0xffcc33 : pct > 0.25 ? 0xff7733 : 0xff3333)
+    this.bossHealthFill.fillRoundedRect(GAME_WIDTH / 2 - 94, 90, 188 * pct, 8, 3)
+  }
+
+  _bossAttack() {
+    if (!this.isBossLevel || this.isGameOver || this.isWon) return
+    const phase = this.bossPhase
+    const choices = phase === 1
+      ? ['cannonball_wave', 'cannonball_wave', 'splash_zone']
+      : phase === 2
+        ? ['vacuum_suction', 'cannonball_wave', 'splash_zone']
+        : ['vacuum_suction', 'cannonball_wave', 'splash_zone', 'splash_cluster']
+    const type = Phaser.Utils.Array.GetRandom(choices)
+    if (type === 'splash_cluster') {
+      this._spawnHazard('splash_zone')
+      this.time.delayedCall(500, () => this._spawnHazard('splash_zone'))
+    } else {
+      this._spawnHazard(type)
+    }
+    this.cameras.main.shake(120, 0.004)
+  }
+
+  _updateBoss(time, delta) {
+    if (!this.isBossLevel || !this.bossObj) return { x: 0, y: 0 }
+    const bobX = Math.sin(time / 1200) * 32
+    this.bossObj.x = GAME_WIDTH - 105 + bobX
+
+    if (this.bossHealth <= this.bossMaxHealth * 0.35) this.bossPhase = 3
+    else if (this.bossHealth <= this.bossMaxHealth * 0.68) this.bossPhase = 2
+    else this.bossPhase = 1
+
+    if (this.bossPhase < 2) return { x: 0, y: 0 }
+
+    const dist = Phaser.Math.Distance.Between(this.gerald.x, this.gerald.y, this.bossObj.x, this.bossObj.y)
+    const radius = this.bossPhase === 3 ? 150 : 120
+    if (dist >= radius || dist <= 4) return { x: 0, y: 0 }
+
+    const angle = Phaser.Math.Angle.Between(this.gerald.x, this.gerald.y, this.bossObj.x, this.bossObj.y)
+    const proximity = 1 - dist / radius
+    const strength = (this.bossPhase === 3 ? 210 : 145) * (0.7 + proximity)
+    const dmg = (this.bossPhase === 3 ? 3.2 : 1.8) * (delta / 1000) * this.gerald.hazardDamageMultiplier
+    this.drownMeter = Math.min(100, this.drownMeter + dmg)
+    return {
+      x: Math.cos(angle) * strength,
+      y: Math.sin(angle) * strength,
+    }
+  }
+
+  _damageBoss(amount) {
+    if (!this.isBossLevel || this.isWon) return
+    this.bossHealth = Math.max(0, this.bossHealth - amount)
+    this._updateBossUI()
+    this._showFloatingText(this.bossObj.x, this.bossObj.y - 70, `-${amount} BOSS`, '#ffee00')
+    this.cameras.main.shake(160, 0.006)
+    if (this.bossHealth <= 0) this._win()
   }
 
   _spawnNextHazard() {
@@ -416,12 +581,15 @@ export default class LevelScene extends Phaser.Scene {
   _spawnCollectible(type) {
     if (this.isGameOver || this.isWon) return
     const y = this._getCollectibleSpawnY(type)
-    const x = Phaser.Math.Between(GAME_WIDTH - 60, GAME_WIDTH - 20)
+    const x = type === 'power_bubble'
+      ? Phaser.Math.Between(75, GAME_WIDTH - 145)
+      : Phaser.Math.Between(GAME_WIDTH - 60, GAME_WIDTH - 20)
     const item = new Collectible(this, x, y, type)
     this.collectibles.add(item)
   }
 
   _getCollectibleSpawnY(type) {
+    if (type === 'power_bubble') return Phaser.Math.Between(WATER_TOP + 90, POOL_BOTTOM - 150)
     if (type !== 'bubble') return Phaser.Math.Between(WATER_TOP + 40, POOL_BOTTOM - 80)
     if (this.levelId === 'splash_zone') return Phaser.Math.Between(WATER_TOP + 120, POOL_BOTTOM - 115)
     if (this.levelId === 'pool_jet_panic') return Phaser.Math.Between(WATER_TOP + 115, POOL_BOTTOM - 95)
@@ -432,6 +600,10 @@ export default class LevelScene extends Phaser.Scene {
   // --- COLLISION HANDLERS ---
   _onCollect(gerald, item) {
     const def = item.definition
+    if (item.collectibleType === 'power_bubble') {
+      this._damageBoss(20)
+      this._showFloatingText(item.x, item.y - 24, 'POWER BUBBLE!', '#ffee00')
+    }
     if (def.drownReduction) {
       const recovery = (item.collectibleType === 'bubble')
         ? (this.levelDef.bubbleRecovery || def.drownReduction || 10)
@@ -578,6 +750,13 @@ export default class LevelScene extends Phaser.Scene {
       try { this.forceDebugText.destroy() } catch {}
       this.forceDebugText = null
     }
+    ;[this.bossObj, this.bossHealthBg, this.bossHealthFill, this.bossHealthLabel].forEach(obj => {
+      try { if (obj) obj.destroy() } catch {}
+    })
+    this.bossObj = null
+    this.bossHealthBg = null
+    this.bossHealthFill = null
+    this.bossHealthLabel = null
   }
 
   _getJetVector(dir) {
@@ -589,7 +768,8 @@ export default class LevelScene extends Phaser.Scene {
   }
 
   _createForceDebugOverlay() {
-    if (!DEBUG_GERALD) return
+    const forceDebugOn = DEBUG_GERALD && typeof window !== 'undefined' && window.location.search.includes('debugForce=1')
+    if (!forceDebugOn) return
     this.forceDebugGfx = this.add.graphics().setDepth(27)
     this.forceDebugText = this.add.text(10, 76, '', {
       fontSize: '9px',
@@ -697,12 +877,14 @@ export default class LevelScene extends Phaser.Scene {
       this.gerald.setVelocityY(Math.max(this.gerald.body.velocity.y, pushVel))
     }
 
-    const scrollSpeed = (this.levelDef.worldScrollSpeed || 80) * (delta / 1000)
-    this.levelProgress += scrollSpeed
-    this.levelProgress = Math.min(this.levelProgress, this.levelDef.levelLength + 1)
+    const scrollSpeed = this.isBossLevel ? 0 : (this.levelDef.worldScrollSpeed || 80) * (delta / 1000)
+    if (!this.isBossLevel) {
+      this.levelProgress += scrollSpeed
+      this.levelProgress = Math.min(this.levelProgress, this.levelDef.levelLength + 1)
+    }
 
     // Checkpoints — plain text
-    if (this.levelDef.checkpoints) {
+    if (!this.isBossLevel && this.levelDef.checkpoints) {
       this.levelDef.checkpoints.forEach(cp => {
         if (!this.checkpointsPassed.has(cp) && this.levelProgress >= cp) {
           this.checkpointsPassed.add(cp)
@@ -713,13 +895,13 @@ export default class LevelScene extends Phaser.Scene {
     }
 
     // Finish line appears near end
-    if (!this.finishLineSpawned && this.levelProgress >= this.levelDef.levelLength * 0.85) {
+    if (!this.isBossLevel && !this.finishLineSpawned && this.levelProgress >= this.levelDef.levelLength * 0.85) {
       this.finishLineSpawned = true
       this._spawnFinishLine()
     }
 
     // Win condition
-    if (this.levelProgress >= this.levelDef.levelLength) {
+    if (!this.isBossLevel && this.levelProgress >= this.levelDef.levelLength) {
       this._win()
       return
     }
@@ -852,6 +1034,15 @@ export default class LevelScene extends Phaser.Scene {
       }
       return true
     })
+
+    if (this.isBossLevel) {
+      const bossForce = this._updateBoss(time, delta)
+      if (bossForce.x || bossForce.y) {
+        environmentalForceX += bossForce.x
+        environmentalForceY += bossForce.y
+        if (!environmentalSources.includes('boss')) environmentalSources.push('boss')
+      }
+    }
 
     this._applyEnvironmentalForce(environmentalForceX, environmentalForceY, delta, environmentalSources)
     this._updateForceDebugOverlay()
@@ -992,6 +1183,14 @@ export default class LevelScene extends Phaser.Scene {
     this._showFloatingText(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'YOU MADE IT!', '#ffdd00')
 
     this.time.delayedCall(1200, () => {
+      if (this.isBossLevel) {
+        this.scene.start('FinalVictoryScene', {
+          score: this.score,
+          geraldPoints: this.geraldPoints,
+          bonusGP,
+        })
+        return
+      }
       this.scene.start('WinScene', {
         score: this.score,
         geraldPoints: this.geraldPoints,

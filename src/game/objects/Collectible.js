@@ -17,6 +17,14 @@ export const COLLECTIBLE_TYPES = {
     floatAmplitude: 4,
     tint: null,
   },
+  power_bubble: {
+    key: 'bubble',
+    scoreBonus: 25,
+    drownReduction: 6,
+    geraldPoints: 0,
+    floatAmplitude: 9,
+    tint: 0xffee44,
+  },
 }
 
 export default class Collectible extends Phaser.Physics.Arcade.Sprite {
@@ -32,6 +40,11 @@ export default class Collectible extends Phaser.Physics.Arcade.Sprite {
     this.setImmovable(true)
     this.body.allowGravity = false
     this.setDepth(8)
+    if (def.tint) this.setTint(def.tint)
+    if (type === 'power_bubble') {
+      this.setScale(1.25)
+      this.setDepth(12)
+    }
 
     // Gentle float bob
     scene.tweens.add({
