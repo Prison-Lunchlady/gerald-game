@@ -3,6 +3,7 @@ import { UPGRADES } from '../data/upgrades'
 import { LEVELS } from '../data/levels'
 import { loadSave, saveSave } from '../data/saveData'
 import { GAME_WIDTH, GAME_HEIGHT } from '../constants'
+import { debugLog } from '../debug'
 
 export default class UpgradeShopScene extends Phaser.Scene {
   constructor() {
@@ -15,6 +16,7 @@ export default class UpgradeShopScene extends Phaser.Scene {
 
   create() {
     this.saveData = loadSave()
+    debugLog('UpgradeShopScene.create', { returnTo: this.returnTo, save: this.saveData })
     this._syncFromSave()
     this._drawBackground()
     this._drawHeader()
@@ -126,6 +128,7 @@ export default class UpgradeShopScene extends Phaser.Scene {
           buyBtn.on('pointerover', () => buyBtn.setStyle({ color: '#ffdd00' }))
           buyBtn.on('pointerout', () => buyBtn.setStyle({ color: '#ffffff' }))
           buyBtn.on('pointerdown', () => {
+            debugLog('UpgradeShopScene.buy', { upgradeId: id })
             this.saveData.geraldPoints -= upgrade.cost
             this.saveData.purchasedUpgrades.push(id)
             saveSave(this.saveData)
@@ -158,6 +161,7 @@ export default class UpgradeShopScene extends Phaser.Scene {
       const nextLevel = save.pendingNextLevelId
         || unlockedLevels[unlockedLevels.length - 1]
         || 'shallow_end'
+      debugLog('UpgradeShopScene.continue', { returnTo: this.returnTo, nextLevel })
       this.registry.set('score', 0)
       this.registry.set('purchasedUpgrades', save.purchasedUpgrades || [])
       this.scene.start('LevelScene', { levelId: nextLevel })
@@ -166,6 +170,9 @@ export default class UpgradeShopScene extends Phaser.Scene {
     this.add.text(GAME_WIDTH / 2, footerY + 34, 'Main Menu', {
       fontSize: '13px', fontFamily: 'Arial, sans-serif', color: '#6699cc',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true })
-    .on('pointerdown', () => this.scene.start('MenuScene'))
+    .on('pointerdown', () => {
+      debugLog('UpgradeShopScene.menu')
+      this.scene.start('MenuScene')
+    })
   }
 }

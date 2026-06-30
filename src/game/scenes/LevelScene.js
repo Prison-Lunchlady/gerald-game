@@ -5,12 +5,14 @@ import Hazard, { HAZARD_TYPES } from '../objects/Hazard'
 import { LEVELS, LEVEL_ORDER } from '../data/levels'
 import { GAME_WIDTH, GAME_HEIGHT } from '../constants'
 import { loadSave, saveSave } from '../data/saveData'
+import { debugLog, getSceneDebugSnapshot } from '../debug'
 
 const WATER_TOP = 150
 const POOL_BOTTOM = GAME_HEIGHT - 50
 // Zone thresholds for drown meter behavior
 const SURFACE_ZONE_Y = WATER_TOP + 65  // y <= 215: broader surface recovery zone
 const DANGER_ZONE_Y = 540              // y >= 540: rapid drown zone
+const MAX_ACTIVE_HAZARDS = 40
 
 export default class LevelScene extends Phaser.Scene {
   constructor() {
@@ -23,6 +25,12 @@ export default class LevelScene extends Phaser.Scene {
   }
 
   create() {
+    if (!this.levelDef) {
+      debugLog('LevelScene.missingLevelDef', { levelId: this.levelId })
+      this.scene.start('MenuScene')
+      return
+    }
+
     const save = loadSave()
     this.saveData = save
 
@@ -43,6 +51,12 @@ export default class LevelScene extends Phaser.Scene {
     this.drownBlinkEvent = null
     this.sectionFill = null
     this._hazardSequenceIdx = 0
+    this._transitioning = false
+    this._lastDebugAt = 0
+
+    debugLog('LevelScene.create', getSceneDebugSnapshot(this))
+
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this._cleanupLevelScene('shutdown'))
 
     this.collectibles = this.physics.add.group()
     this.hazardPhysicsGroup = this.physics.add.group()
@@ -301,6 +315,7 @@ export default class LevelScene extends Phaser.Scene {
 
   _spawnNextHazard() {
     if (this.isGameOver || this.isWon) return
+    this._enforceHazardCap('beforeSpawnNext')
     let type
     if (this.levelDef.hazardSequence && this.levelDef.hazardSequence.length > 0) {
       type = this.levelDef.hazardSequence[this._hazardSequenceIdx % this.levelDef.hazardSequence.length]
@@ -309,6 +324,8 @@ export default class LevelScene extends Phaser.Scene {
       const types = this.levelDef.hazardTypes || ['cannonball_wave']
       type = types[Math.floor(Math.random() * types.length)]
     }
+
+    debugLog('LevelScene.spawnNextHazard', getSceneDebugSnapshot(this, { type }))
 
     // Splash cluster: spawn 2-3 splash zones with slight stagger
     if (type === 'splash_cluster') {
@@ -327,7 +344,10 @@ export default class LevelScene extends Phaser.Scene {
   _spawnHazard(type) {
     if (this.isGameOver || this.isWon) return
     const def = HAZARD_TYPES[type]
-    if (!def) return
+    if (!def) {
+      debugLog('LevelScene.unknownHazardType', { levelId: this.levelId, type })
+      return
+    }
 
     let x, y
     const opts = {}
@@ -356,11 +376,15 @@ export default class LevelScene extends Phaser.Scene {
     const hazard = new Hazard(this, x, y, type, opts)
     this.hazardList.push(hazard)
 
-    const physObj = hazard.getPhysicsBody()
-    if (physObj) {
-      this.hazardPhysicsGroup.add(physObj)
-      physObj._hazardRef = hazard
+    const physObj = this._getHazardPhysicsBody(hazard)
+    if (!physObj) {
+      debugLog('LevelScene.hazardMissingBody', getSceneDebugSnapshot(this, { type }))
+      hazard.destroy()
+      this.hazardList = this.hazardList.filter(h => h !== hazard)
+      return
     }
+    this.hazardPhysicsGroup.add(physObj)
+    physObj._hazardRef = hazard
 
     if (type === 'splash_zone') {
       this.splashZones.push(hazard)
@@ -369,6 +393,9 @@ export default class LevelScene extends Phaser.Scene {
     } else if (type === 'vacuum_suction') {
       this.vacuumZones.push(hazard)
     }
+
+    debugLog('LevelScene.spawnHazard', getSceneDebugSnapshot(this, { type, x, y }))
+    this._enforceHazardCap('afterSpawn')
   }
 
   _spawnCollectible(type) {
@@ -405,6 +432,7 @@ export default class LevelScene extends Phaser.Scene {
     const hazard = physObj._hazardRef
     if (!hazard || hazard.dodged || hazard.hitGerald) return
     hazard.hitGerald = true
+    debugLog('LevelScene.hazardHit', getSceneDebugSnapshot(this, { hazardType: hazard.hazardType }))
 
     const damage = hazard.definition.drownIncrease * this.gerald.hazardDamageMultiplier
     if (damage > 0) {
@@ -477,9 +505,58 @@ export default class LevelScene extends Phaser.Scene {
     this.tweens.add({ targets: txt, y: y - 50, alpha: 0, duration: 900, onComplete: () => txt.destroy() })
   }
 
+  _getHazardPhysicsBody(hazard) {
+    if (!hazard) return null
+    if (typeof hazard.getPhysicsBody === 'function') return hazard.getPhysicsBody()
+    return hazard._body || null
+  }
+
+  _getHazardBounds(hazard) {
+    if (!hazard || !hazard.active) return null
+    if (typeof hazard.getBounds === 'function') return hazard.getBounds()
+    const bodyObj = this._getHazardPhysicsBody(hazard)
+    return bodyObj && typeof bodyObj.getBounds === 'function' ? bodyObj.getBounds() : null
+  }
+
+  _enforceHazardCap(reason) {
+    const activeHazards = this.hazardList.filter(h => h && h.active)
+    if (activeHazards.length <= MAX_ACTIVE_HAZARDS) return
+
+    debugLog('LevelScene.hazardCapExceeded', getSceneDebugSnapshot(this, {
+      reason,
+      max: MAX_ACTIVE_HAZARDS,
+    }))
+
+    const overflow = activeHazards.length - MAX_ACTIVE_HAZARDS
+    activeHazards.slice(0, overflow).forEach(h => {
+      try { h.destroy() } catch {}
+    })
+    this.hazardList = this.hazardList.filter(h => h && h.active)
+  }
+
+  _cleanupLevelScene(reason) {
+    debugLog('LevelScene.cleanup', getSceneDebugSnapshot(this, { reason }))
+    if (this.hazardTimer) {
+      this.hazardTimer.remove(false)
+      this.hazardTimer = null
+    }
+    this.hazardList.forEach(h => {
+      try { if (h && h.active) h.destroy() } catch {}
+    })
+    this.hazardList = []
+    this.splashZones = []
+    this.jetZones = []
+    this.vacuumZones = []
+  }
+
   // --- MAIN UPDATE LOOP ---
   update(time, delta) {
     if (this.isGameOver || this.isWon) return
+
+    if (time - this._lastDebugAt >= 2000) {
+      this._lastDebugAt = time
+      debugLog('LevelScene.update', getSceneDebugSnapshot(this))
+    }
 
     const leftHeld  = this.cursors.left.isDown  || this.wasd.left.isDown  || this.btnLeftDown
     const rightHeld = this.cursors.right.isDown || this.wasd.right.isDown || this.btnRightDown
@@ -547,9 +624,9 @@ export default class LevelScene extends Phaser.Scene {
     this.splashZones = this.splashZones.filter(zone => {
       if (!zone.active) return false
       if (zone._splashPhase === 'active') {
-        const zBounds = zone.getBounds()
+        const zBounds = this._getHazardBounds(zone)
         const gBounds = this.gerald.getBounds()
-        if (Phaser.Geom.Rectangle.Overlaps(zBounds, gBounds)) {
+        if (zBounds && Phaser.Geom.Rectangle.Overlaps(zBounds, gBounds)) {
           const splashDmg = zone.definition.drownRate * (delta / 1000) * this.gerald.hazardDamageMultiplier
           this.drownMeter = Math.min(100, this.drownMeter + splashDmg)
         }
@@ -561,9 +638,9 @@ export default class LevelScene extends Phaser.Scene {
     this.jetZones = this.jetZones.filter(zone => {
       if (!zone.active) return false
       if (zone._jetPhase === 'active') {
-        const zBounds = zone.getBounds()
+        const zBounds = this._getHazardBounds(zone)
         const gBounds = this.gerald.getBounds()
-        if (Phaser.Geom.Rectangle.Overlaps(zBounds, gBounds)) {
+        if (zBounds && Phaser.Geom.Rectangle.Overlaps(zBounds, gBounds)) {
           const resist = this.gerald.jetResistMultiplier || 1.0
           const str = zone._jetStrength * resist
           const dir = zone._jetDir || 'down'
@@ -637,14 +714,23 @@ export default class LevelScene extends Phaser.Scene {
     }
 
     // Update hazards
-    this.hazardList.forEach(h => { if (h.active) h.update(delta) })
+    this.hazardList.forEach(h => {
+      if (!h || !h.active) return
+      if (typeof h.update !== 'function') {
+        debugLog('LevelScene.hazardMissingUpdate', getSceneDebugSnapshot(this, { hazardType: h.hazardType }))
+        try { h.destroy() } catch {}
+        return
+      }
+      h.update(delta)
+    })
 
     // Clean up off-screen hazards + dodged scoring
     this.hazardList = this.hazardList.filter(h => {
       if (!h.active) return false
       if (h.x < -150) {
         if (!h.dodged && !h.hitGerald) {
-          h.markDodged()
+          if (typeof h.markDodged === 'function') h.markDodged()
+          else h.dodged = true
           this._addScore(h.definition.scoreOnDodge || 10)
           this._showFloatingText(
             Phaser.Math.Between(60, GAME_WIDTH - 60),
@@ -652,7 +738,7 @@ export default class LevelScene extends Phaser.Scene {
             `+${h.definition.scoreOnDodge || 10} DODGED!`, '#88ff88'
           )
         }
-        if (h.checkCloseCall && h.checkCloseCall(this.gerald)) {
+        if (typeof h.checkCloseCall === 'function' && h.checkCloseCall(this.gerald)) {
           const ccScore = h.definition.closeCallScore || 50
           this._addScore(ccScore)
           this._showFloatingText(this.gerald.x, this.gerald.y - 40, `CLOSE CALL! +${ccScore}`, '#ffff00')
@@ -706,8 +792,10 @@ export default class LevelScene extends Phaser.Scene {
 
   // --- WIN / GAME OVER ---
   _win() {
-    if (this.isWon) return
+    if (this.isWon || this._transitioning) return
     this.isWon = true
+    this._transitioning = true
+    debugLog('LevelScene.win', getSceneDebugSnapshot(this))
 
     this._addScore(100)
 
@@ -755,8 +843,10 @@ export default class LevelScene extends Phaser.Scene {
   }
 
   _gameOver() {
-    if (this.isGameOver) return
+    if (this.isGameOver || this._transitioning) return
     this.isGameOver = true
+    this._transitioning = true
+    debugLog('LevelScene.gameOver', getSceneDebugSnapshot(this))
 
     this.drownMeter = 100
     this._updateUI()

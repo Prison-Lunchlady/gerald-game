@@ -1,6 +1,7 @@
 import Phaser from 'phaser'
 import { getRandomGameOverMessage } from '../data/gameOverMessages'
 import { GAME_WIDTH, GAME_HEIGHT } from '../constants'
+import { debugLog } from '../debug'
 
 export default class GameOverScene extends Phaser.Scene {
   constructor() {
@@ -14,6 +15,7 @@ export default class GameOverScene extends Phaser.Scene {
   }
 
   create() {
+    debugLog('GameOverScene.create', { levelId: this.levelId, score: this.finalScore })
     const overlay = this.add.graphics()
     overlay.fillStyle(0x000033, 0.85)
     overlay.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT)
@@ -78,6 +80,7 @@ export default class GameOverScene extends Phaser.Scene {
     restartBtn.on('pointerover', () => restartBtn.setStyle({ color: '#ffdd00' }))
     restartBtn.on('pointerout', () => restartBtn.setStyle({ color: '#ffffff' }))
     restartBtn.on('pointerdown', () => {
+      debugLog('GameOverScene.retry', { levelId: this.levelId })
       this.registry.set('score', 0)
       this.scene.start('LevelScene', { levelId: this.levelId })
     })
@@ -90,11 +93,17 @@ export default class GameOverScene extends Phaser.Scene {
     }).setOrigin(0.5).setInteractive({ useHandCursor: true })
     shopBtn.on('pointerover', () => shopBtn.setStyle({ color: '#ffdd00' }))
     shopBtn.on('pointerout', () => shopBtn.setStyle({ color: '#ffffff' }))
-    shopBtn.on('pointerdown', () => { this.scene.start('UpgradeShopScene', { returnTo: 'GameRetry' }) })
+    shopBtn.on('pointerdown', () => {
+      debugLog('GameOverScene.shop', { returnTo: 'GameRetry' })
+      this.scene.start('UpgradeShopScene', { returnTo: 'GameRetry' })
+    })
 
     this.add.text(GAME_WIDTH / 2, 578, '← Main Menu', {
       fontSize: '14px', fontFamily: 'Arial, sans-serif', color: '#aaaaff',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true })
-    .on('pointerdown', () => this.scene.start('MenuScene'))
+    .on('pointerdown', () => {
+      debugLog('GameOverScene.menu')
+      this.scene.start('MenuScene')
+    })
   }
 }

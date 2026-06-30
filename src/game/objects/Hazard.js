@@ -92,6 +92,7 @@ export default class Hazard {
     this._jetPhase = null
     this._vacPhase = null
     this._txtShown = false  // debounce for per-frame floating text
+    this._tweens = []
 
     // --- Type-specific pre-init (must happen before physics body + drawVisual) ---
     if (type === 'splash_zone') {
@@ -138,7 +139,7 @@ export default class Hazard {
 
     // WAVE: oscillating scale
     if (type === 'cannonball_wave') {
-      scene.tweens.add({
+      this._addTween({
         targets: this._gfx,
         scaleX: 1.25, scaleY: 1.08,
         duration: 160, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
@@ -147,13 +148,13 @@ export default class Hazard {
 
     // LEAF: y-bobbing + slight rotation
     if (type === 'floating_leaf') {
-      scene.tweens.add({
+      this._addTween({
         targets: this, _leafOffsetY: 10,
         duration: 700, yoyo: true, repeat: -1,
         ease: 'Sine.easeInOut',
         delay: Math.floor(Math.random() * 500),
       })
-      scene.tweens.add({
+      this._addTween({
         targets: this._gfx, rotation: 0.18,
         duration: 1300, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
       })
@@ -161,7 +162,7 @@ export default class Hazard {
 
     // BEACH BALL: continuous spin
     if (type === 'beach_ball') {
-      scene.tweens.add({
+      this._addTween({
         targets: this._gfx,
         rotation: Math.PI * 2,
         duration: 1000, repeat: -1, ease: 'Linear',
@@ -183,13 +184,13 @@ export default class Hazard {
         strokeThickness: 3,
         align: 'center',
       }).setOrigin(0.5).setDepth(12)
-      scene.tweens.add({
+      this._addTween({
         targets: this._warnTxt, alpha: 0.15,
         duration: 350, yoyo: true, repeat: -1,
       })
 
       // Warning phase pulsing ring
-      this._warningTween = scene.tweens.add({
+      this._warningTween = this._addTween({
         targets: this._gfx,
         scaleX: 1.2, scaleY: 1.2,
         duration: 400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
@@ -202,7 +203,7 @@ export default class Hazard {
         if (this._warningTween) { this._warningTween.stop(); this._warningTween = null }
         // Fade out warning text
         if (this._warnTxt) {
-          scene.tweens.add({
+          this._addTween({
             targets: this._warnTxt, alpha: 0, duration: 250,
             onComplete: () => {
               if (this._warnTxt) { try { this._warnTxt.destroy() } catch(e){} this._warnTxt = null }
@@ -212,13 +213,13 @@ export default class Hazard {
         // Redraw as active
         this._drawVisual()
         // Grow then fade out
-        scene.tweens.add({
+        this._addTween({
           targets: this._gfx,
           scaleX: 1.55, scaleY: 1.55,
           duration: 1800, ease: 'Quad.easeIn',
           onComplete: () => {
             if (this._dead) return
-            scene.tweens.add({
+            this._addTween({
               targets: this._gfx,
               scaleX: 0.8, scaleY: 0.8, alpha: 0,
               duration: 500, ease: 'Quad.easeOut',
@@ -245,10 +246,10 @@ export default class Hazard {
         strokeThickness: 3,
         align: 'center',
       }).setOrigin(0.5).setDepth(12)
-      scene.tweens.add({ targets: this._warnTxt, alpha: 0.15, duration: 300, yoyo: true, repeat: -1 })
+      this._addTween({ targets: this._warnTxt, alpha: 0.15, duration: 300, yoyo: true, repeat: -1 })
 
       // Warning flash pulses, then goes active
-      this._warningTween = scene.tweens.add({
+      this._warningTween = this._addTween({
         targets: this._gfx, alpha: 0.45,
         duration: 280, yoyo: true, repeat: 2,
         onComplete: () => {
@@ -257,7 +258,7 @@ export default class Hazard {
           this._jetPhase = 'active'
           // Fade out warning text
           if (this._warnTxt) {
-            scene.tweens.add({
+            this._addTween({
               targets: this._warnTxt, alpha: 0, duration: 200,
               onComplete: () => {
                 if (this._warnTxt) { try { this._warnTxt.destroy() } catch(e){} this._warnTxt = null }
@@ -265,9 +266,9 @@ export default class Hazard {
             })
           }
           // Ramp up to full visibility
-          scene.tweens.add({ targets: this._gfx, alpha: 0.9, duration: 150 })
+          this._addTween({ targets: this._gfx, alpha: 0.9, duration: 150 })
           // Pulsing stream animation
-          scene.tweens.add({
+          this._addTween({
             targets: this._gfx,
             scaleX: (this._jetDir === 'down') ? 1.05 : 1.0,
             scaleY: (this._jetDir === 'down') ? 1.0 : 1.05,
@@ -292,16 +293,16 @@ export default class Hazard {
         strokeThickness: 3,
         align: 'center',
       }).setOrigin(0.5).setDepth(12)
-      scene.tweens.add({ targets: this._warnTxt, alpha: 0.15, duration: 350, yoyo: true, repeat: -1 })
+      this._addTween({ targets: this._warnTxt, alpha: 0.15, duration: 350, yoyo: true, repeat: -1 })
 
       // Slow rotation during warning
-      scene.tweens.add({
+      this._addTween({
         targets: this._gfx, rotation: Math.PI * 2,
         duration: 2200, repeat: -1, ease: 'Linear',
       })
 
       // Pulse warning gfx
-      this._warningTween = scene.tweens.add({
+      this._warningTween = this._addTween({
         targets: this._gfx, scaleX: 1.08, scaleY: 1.08,
         duration: 500, yoyo: true, repeat: -1, ease: 'Sine.easeInOut',
       })
@@ -311,7 +312,7 @@ export default class Hazard {
         if (this._dead) return
         this._vacPhase = 'active'
         if (this._warnTxt) {
-          scene.tweens.add({
+          this._addTween({
             targets: this._warnTxt, alpha: 0, duration: 200,
             onComplete: () => {
               if (this._warnTxt) { try { this._warnTxt.destroy() } catch(e){} this._warnTxt = null }
@@ -322,6 +323,12 @@ export default class Hazard {
 
       scene.time.delayedCall(def.duration || 5000, () => { this.destroy() })
     }
+  }
+
+  _addTween(config) {
+    const tween = this.scene.tweens.add(config)
+    this._tweens.push(tween)
+    return tween
   }
 
   // ================================================================
@@ -627,6 +634,8 @@ export default class Hazard {
   destroy() {
     if (this._dead) return
     this._dead = true
+    this._tweens.forEach(tween => { try { tween.stop() } catch(e){} })
+    this._tweens = []
     if (this._warningTween) { try { this._warningTween.stop() } catch(e){} this._warningTween = null }
     if (this._warnTxt) { try { this._warnTxt.destroy() } catch(e){} this._warnTxt = null }
     if (this._gfx) { try { this._gfx.destroy() } catch(e){} this._gfx = null }

@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { GAME_WIDTH, GAME_HEIGHT } from '../constants'
 import { LEVELS, LEVEL_ORDER } from '../data/levels'
 import { loadSave } from '../data/saveData'
+import { debugLog } from '../debug'
 
 // ISSUE 3: Level-specific completion messages
 const COMPLETION_MESSAGES = {
@@ -29,6 +30,7 @@ export default class WinScene extends Phaser.Scene {
   }
 
   create() {
+    debugLog('WinScene.create', { levelId: this.levelId, nextLevelId: this.nextLevelId })
     // Also read pendingNextLevelId from save in case it was updated
     const save = loadSave()
     const nextLevelId = this.nextLevelId || save.pendingNextLevelId || null
@@ -129,6 +131,7 @@ export default class WinScene extends Phaser.Scene {
       nextBtn.on('pointerover', () => nextBtn.setStyle({ color: '#ffdd00' }))
       nextBtn.on('pointerout', () => nextBtn.setStyle({ color: '#ffffff' }))
       nextBtn.on('pointerdown', () => {
+        debugLog('WinScene.next', { nextLevelId })
         this.registry.set('score', 0)
         this.scene.start('LevelScene', { levelId: nextLevelId })
       })
@@ -172,7 +175,10 @@ export default class WinScene extends Phaser.Scene {
     }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(12)
     shopBtn.on('pointerover', () => shopBtn.setStyle({ color: '#ffdd00' }))
     shopBtn.on('pointerout', () => shopBtn.setStyle({ color: '#ffffff' }))
-    shopBtn.on('pointerdown', () => { this.scene.start('UpgradeShopScene', { returnTo: 'NextRun' }) })
+    shopBtn.on('pointerdown', () => {
+      debugLog('WinScene.shop', { returnTo: 'NextRun' })
+      this.scene.start('UpgradeShopScene', { returnTo: 'NextRun' })
+    })
 
     const replayBtnY = shopBtnY + 52
     const replayBtn = this.add.text(GAME_WIDTH / 2, replayBtnY, 'Replay Level', {
@@ -180,6 +186,7 @@ export default class WinScene extends Phaser.Scene {
       backgroundColor: '#001133', padding: { x: 14, y: 8 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(12)
     replayBtn.on('pointerdown', () => {
+      debugLog('WinScene.replay', { levelId: this.levelId })
       this.registry.set('score', 0)
       this.scene.start('LevelScene', { levelId: this.levelId })
     })
@@ -187,6 +194,9 @@ export default class WinScene extends Phaser.Scene {
     this.add.text(GAME_WIDTH / 2, replayBtnY + 38, '< Main Menu', {
       fontSize: '12px', fontFamily: 'Arial, sans-serif', color: '#6699cc',
     }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setDepth(12)
-    .on('pointerdown', () => this.scene.start('MenuScene'))
+    .on('pointerdown', () => {
+      debugLog('WinScene.menu')
+      this.scene.start('MenuScene')
+    })
   }
 }

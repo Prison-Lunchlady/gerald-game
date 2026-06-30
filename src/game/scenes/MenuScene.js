@@ -2,6 +2,7 @@ import Phaser from 'phaser'
 import { GAME_WIDTH, GAME_HEIGHT } from '../constants'
 import { LEVELS, LEVEL_ORDER } from '../data/levels'
 import { loadSave, saveSave, resetSave } from '../data/saveData'
+import { BUILD_VERSION, debugLog } from '../debug'
 
 export default class MenuScene extends Phaser.Scene {
   constructor() {
@@ -10,6 +11,7 @@ export default class MenuScene extends Phaser.Scene {
 
   create() {
     this.saveData = loadSave()
+    debugLog('MenuScene.create', { build: BUILD_VERSION, save: this.saveData })
 
     // Determine Continue Game state
     const _s = this.saveData
@@ -60,6 +62,7 @@ export default class MenuScene extends Phaser.Scene {
       contBtn.on('pointerover', () => contBtn.setStyle({ color: '#ffffff' }))
       contBtn.on('pointerout', () => contBtn.setStyle({ color: '#ffdd00' }))
       contBtn.on('pointerdown', () => {
+        debugLog('MenuScene.continue', { levelId: this._continueLevelId })
         this.registry.set('score', 0)
         this.registry.set('geraldPoints', this.saveData.geraldPoints)
         this.registry.set('purchasedUpgrades', this.saveData.purchasedUpgrades || [])
@@ -82,7 +85,10 @@ export default class MenuScene extends Phaser.Scene {
     }).setOrigin(0.5).setInteractive({ useHandCursor: true })
     shopBtn.on('pointerover', () => shopBtn.setStyle({ color: '#ffdd00' }))
     shopBtn.on('pointerout', () => shopBtn.setStyle({ color: '#ffffff' }))
-    shopBtn.on('pointerdown', () => { this.scene.start('UpgradeShopScene', { returnTo: 'Menu' }) })
+    shopBtn.on('pointerdown', () => {
+      debugLog('MenuScene.shop', { returnTo: 'Menu' })
+      this.scene.start('UpgradeShopScene', { returnTo: 'Menu' })
+    })
 
     // ISSUE 12: New Game / Reset button (small, unobtrusive at very bottom)
     const newGameBtn = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT - 16, 'New Game / Reset Progress', {
@@ -92,6 +98,10 @@ export default class MenuScene extends Phaser.Scene {
     newGameBtn.on('pointerover', () => newGameBtn.setStyle({ color: '#8899aa' }))
     newGameBtn.on('pointerout', () => newGameBtn.setStyle({ color: '#445566' }))
     newGameBtn.on('pointerdown', () => this._showNewGameConfirm())
+
+    this.add.text(GAME_WIDTH - 6, GAME_HEIGHT - 6, `Build: ${BUILD_VERSION}`, {
+      fontSize: '9px', fontFamily: 'Arial, sans-serif', color: '#88aacc',
+    }).setOrigin(1, 1).setDepth(80)
   }
 
   _drawLevelSelect() {
@@ -126,6 +136,7 @@ export default class MenuScene extends Phaser.Scene {
         txt.on('pointerover', () => txt.setStyle({ color: '#ffffff' }))
         txt.on('pointerout', () => txt.setStyle({ color }))
         txt.on('pointerdown', () => {
+          debugLog('MenuScene.levelSelect', { levelId: id })
           this.registry.set('score', 0)
           this.registry.set('geraldPoints', this.saveData.geraldPoints)
           this.registry.set('purchasedUpgrades', this.saveData.purchasedUpgrades || [])
@@ -138,6 +149,7 @@ export default class MenuScene extends Phaser.Scene {
             color: '#ffffff', backgroundColor: '#005500', padding: { x: 6, y: 3 },
           }).setOrigin(1, 0).setDepth(5).setInteractive({ useHandCursor: true })
           playLabel.on('pointerdown', () => {
+            debugLog('MenuScene.playLabel', { levelId: id })
             this.registry.set('score', 0)
             this.registry.set('geraldPoints', this.saveData.geraldPoints)
             this.registry.set('purchasedUpgrades', this.saveData.purchasedUpgrades || [])
@@ -152,6 +164,7 @@ export default class MenuScene extends Phaser.Scene {
           replayLabel.on('pointerover', () => replayLabel.setStyle({ color: '#ffffff' }))
           replayLabel.on('pointerout', () => replayLabel.setStyle({ color: '#aaffaa' }))
           replayLabel.on('pointerdown', () => {
+            debugLog('MenuScene.replayLabel', { levelId: id })
             this.registry.set('score', 0)
             this.registry.set('geraldPoints', this.saveData.geraldPoints)
             this.registry.set('purchasedUpgrades', this.saveData.purchasedUpgrades || [])
@@ -216,6 +229,7 @@ export default class MenuScene extends Phaser.Scene {
     btnResetLevels.on('pointerover', () => btnResetLevels.setStyle({ color: '#ffdd00' }))
     btnResetLevels.on('pointerout', () => btnResetLevels.setStyle({ color: '#ffffff' }))
     btnResetLevels.on('pointerdown', () => {
+      debugLog('MenuScene.resetLevels')
       // Keep GP and upgrades, reset only level progress
       const save = loadSave()
       save.completedLevels = []
@@ -231,6 +245,7 @@ export default class MenuScene extends Phaser.Scene {
     btnFull.on('pointerover', () => btnFull.setStyle({ color: '#ffffff' }))
     btnFull.on('pointerout', () => btnFull.setStyle({ color: '#ffaaaa' }))
     btnFull.on('pointerdown', () => {
+      debugLog('MenuScene.fullReset')
       resetSave()
       destroyDialog()
       this.scene.restart()
