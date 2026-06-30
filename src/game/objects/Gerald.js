@@ -23,9 +23,17 @@ export default class Gerald extends Phaser.Physics.Arcade.Sprite {
     this.passiveFloatForce = 0
     this.floatiesVisible = false
     this.bobberVisible = false
+    this.noodleVisible = false
+    this.flippersVisible = false
+    this.gogglesVisible = false
+    this.snorkelVisible = false
 
     this.floatiesGfx = null
     this.bobberGfx = null
+    this.noodleGfx = null
+    this.flippersGfx = null
+    this.gogglesGfx = null
+    this.snorkelGfx = null
 
     this._direction = 'front'
 
@@ -33,6 +41,7 @@ export default class Gerald extends Phaser.Physics.Arcade.Sprite {
     this._waveHitMs = 0
     this.jetResistMultiplier = 1.0
     this.vacuumEscapeMultiplier = 1.0
+    this.surfaceSwimMultiplier = 1.0
   }
 
   applyUpgrades(purchasedUpgrades) {
@@ -43,11 +52,14 @@ export default class Gerald extends Phaser.Physics.Arcade.Sprite {
     this.passiveFloatForce = 0
     this.floatiesVisible = false
     this.bobberVisible = false
+    this.noodleVisible = false
+    this.flippersVisible = false
+    this.gogglesVisible = false
+    this.snorkelVisible = false
     this.jetResistMultiplier = 1.0
     this.vacuumEscapeMultiplier = 1.0
 
-    if (this.floatiesGfx) { this.floatiesGfx.destroy(); this.floatiesGfx = null }
-    if (this.bobberGfx) { this.bobberGfx.destroy(); this.bobberGfx = null }
+    this._destroyUpgradeGfx()
 
     if (!purchasedUpgrades || purchasedUpgrades.length === 0) {
       this.sinkSpeed = this.baseSinkSpeed
@@ -69,15 +81,19 @@ export default class Gerald extends Phaser.Physics.Arcade.Sprite {
         case 'pool_noodle_belt':
           this.sinkSpeedMultiplier *= 0.78
           this.passiveFloatForce = 7
+          this.noodleVisible = true
           break
         case 'wave_resistance':
           this.hazardDamageMultiplier *= 0.60
+          this.flippersVisible = true
           break
         case 'jet_resistance':
           this.jetResistMultiplier *= 0.58
+          this.gogglesVisible = true
           break
         case 'vacuum_escape':
           this.vacuumEscapeMultiplier *= 0.60
+          this.snorkelVisible = true
           break
       }
     })
@@ -105,6 +121,46 @@ export default class Gerald extends Phaser.Physics.Arcade.Sprite {
       this.bobberGfx.setDepth(this.depth + 1)
     }
 
+    if (this.noodleVisible && this.scene) {
+      this.noodleGfx = this.scene.add.graphics()
+      this.noodleGfx.lineStyle(6, 0xffdd00, 0.95)
+      this.noodleGfx.strokeEllipse(0, 10, 52, 18)
+      this.noodleGfx.lineStyle(2, 0xff9900, 0.9)
+      this.noodleGfx.strokeEllipse(0, 10, 58, 22)
+      this.noodleGfx.setDepth(this.depth + 1)
+    }
+
+    if (this.flippersVisible && this.scene) {
+      this.flippersGfx = this.scene.add.graphics()
+      this.flippersGfx.fillStyle(0x2266ff, 0.9)
+      this.flippersGfx.fillTriangle(-17, 22, -5, 22, -22, 40)
+      this.flippersGfx.fillTriangle(5, 22, 17, 22, 22, 40)
+      this.flippersGfx.lineStyle(2, 0x003399, 0.9)
+      this.flippersGfx.strokeTriangle(-17, 22, -5, 22, -22, 40)
+      this.flippersGfx.strokeTriangle(5, 22, 17, 22, 22, 40)
+      this.flippersGfx.setDepth(this.depth + 1)
+    }
+
+    if (this.gogglesVisible && this.scene) {
+      this.gogglesGfx = this.scene.add.graphics()
+      this.gogglesGfx.lineStyle(3, 0x00ddff, 0.95)
+      this.gogglesGfx.strokeCircle(-10, -8, 9)
+      this.gogglesGfx.strokeCircle(10, -8, 9)
+      this.gogglesGfx.lineStyle(2, 0x003355, 0.95)
+      this.gogglesGfx.lineBetween(-1, -8, 1, -8)
+      this.gogglesGfx.setDepth(this.depth + 2)
+    }
+
+    if (this.snorkelVisible && this.scene) {
+      this.snorkelGfx = this.scene.add.graphics()
+      this.snorkelGfx.lineStyle(5, 0xff8844, 0.95)
+      this.snorkelGfx.lineBetween(22, -16, 30, -32)
+      this.snorkelGfx.lineBetween(30, -32, 39, -32)
+      this.snorkelGfx.fillStyle(0xffff66, 1)
+      this.snorkelGfx.fillRoundedRect(36, -38, 9, 12, 3)
+      this.snorkelGfx.setDepth(this.depth + 2)
+    }
+
     console.log(`[applyUpgrades] sinkSpeed=${this.sinkSpeed.toFixed(1)} swimMult=${this.swimBoostMultiplier.toFixed(2)} passiveFloat=${this.passiveFloatForce}`)
   }
 
@@ -114,8 +170,9 @@ export default class Gerald extends Phaser.Physics.Arcade.Sprite {
     const nearSurface = this.y < 195
     const depthFactor = nearSurface ? 0.60 : 1.0
 
-    const boostVel = this.bobPower * this.swimBoostMultiplier * depthFactor
-    const maxUpwardSpeed = -400 * Math.min(this.swimBoostMultiplier, 1.1)
+    const fatigueFactor = nearSurface ? (this.surfaceSwimMultiplier || 1.0) : 1.0
+    const boostVel = this.bobPower * this.swimBoostMultiplier * depthFactor * fatigueFactor
+    const maxUpwardSpeed = -400 * Math.min(this.swimBoostMultiplier, 1.1) * fatigueFactor
     const clamped = Math.max(boostVel, maxUpwardSpeed)
 
     this.setVelocityY(clamped)
@@ -188,11 +245,31 @@ export default class Gerald extends Phaser.Physics.Arcade.Sprite {
     if (this.bobberGfx) {
       this.bobberGfx.setPosition(this.x + 20, this.y - 12)
     }
+    if (this.noodleGfx) {
+      this.noodleGfx.setPosition(this.x, this.y)
+    }
+    if (this.flippersGfx) {
+      this.flippersGfx.setPosition(this.x, this.y)
+    }
+    if (this.gogglesGfx) {
+      this.gogglesGfx.setPosition(this.x, this.y)
+    }
+    if (this.snorkelGfx) {
+      this.snorkelGfx.setPosition(this.x, this.y)
+    }
+  }
+
+  _destroyUpgradeGfx() {
+    if (this.floatiesGfx) { try { this.floatiesGfx.destroy() } catch(e) {} this.floatiesGfx = null }
+    if (this.bobberGfx) { try { this.bobberGfx.destroy() } catch(e) {} this.bobberGfx = null }
+    if (this.noodleGfx) { try { this.noodleGfx.destroy() } catch(e) {} this.noodleGfx = null }
+    if (this.flippersGfx) { try { this.flippersGfx.destroy() } catch(e) {} this.flippersGfx = null }
+    if (this.gogglesGfx) { try { this.gogglesGfx.destroy() } catch(e) {} this.gogglesGfx = null }
+    if (this.snorkelGfx) { try { this.snorkelGfx.destroy() } catch(e) {} this.snorkelGfx = null }
   }
 
   destroy(fromScene) {
-    if (this.floatiesGfx) { try { this.floatiesGfx.destroy() } catch(e) {} this.floatiesGfx = null }
-    if (this.bobberGfx) { try { this.bobberGfx.destroy() } catch(e) {} this.bobberGfx = null }
+    this._destroyUpgradeGfx()
     super.destroy(fromScene)
   }
 }

@@ -59,10 +59,15 @@ export default class LevelScene extends Phaser.Scene {
     this._lastAppliedForce = null
     this._forceDebugZones = []
     this._forceDebugCircles = []
+    this.surfaceBreathCount = 0
+    this._surfaceVisitRecovery = 0
+    this._surfaceVisitCounted = false
+    this._wasInSurfaceZone = false
     this.bossHealth = this.levelDef.bossHealth || 0
     this.bossMaxHealth = this.levelDef.bossHealth || 0
     this.bossPhase = 1
     this.bossObj = null
+    this.bossDefeated = false
 
     debugLog('LevelScene.create', getSceneDebugSnapshot(this))
 
@@ -334,7 +339,7 @@ export default class LevelScene extends Phaser.Scene {
 
   _startBossTimers() {
     this.time.delayedCall(700, () => this._spawnCollectible('bubble'))
-    this.time.delayedCall(1100, () => this._spawnCollectible('power_bubble'))
+    this.time.delayedCall(1700, () => this._spawnCollectible('power_bubble'))
 
     this.time.addEvent({
       delay: this.levelDef.bubbleInterval || 5200,
@@ -409,14 +414,8 @@ export default class LevelScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(33)
     this._updateBossUI()
 
-    this.tweens.add({
-      targets: this.bossObj,
-      y: WATER_TOP + 245,
-      duration: 2200,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut',
-    })
+    this.bossObj.setData('homeX', GAME_WIDTH - 100)
+    this.bossObj.setData('homeY', WATER_TOP + 190)
   }
 
   _updateBossUI() {
@@ -437,10 +436,10 @@ export default class LevelScene extends Phaser.Scene {
     if (!this.isBossLevel || this.isGameOver || this.isWon) return
     const phase = this.bossPhase
     const choices = phase === 1
-      ? ['cannonball_wave', 'cannonball_wave', 'splash_zone']
+      ? ['cannonball_wave', 'splash_zone', 'kickboard']
       : phase === 2
-        ? ['vacuum_suction', 'cannonball_wave', 'splash_zone']
-        : ['vacuum_suction', 'cannonball_wave', 'splash_zone', 'splash_cluster']
+        ? ['vacuum_suction', 'cannonball_wave', 'splash_zone', 'floating_ring']
+        : ['vacuum_suction', 'cannonball_wave', 'splash_zone', 'splash_cluster', 'beach_ball']
     const type = Phaser.Utils.Array.GetRandom(choices)
     if (type === 'splash_cluster') {
       this._spawnHazard('splash_zone')
@@ -453,23 +452,30 @@ export default class LevelScene extends Phaser.Scene {
 
   _updateBoss(time, delta) {
     if (!this.isBossLevel || !this.bossObj) return { x: 0, y: 0 }
-    const bobX = Math.sin(time / 1200) * 32
-    this.bossObj.x = GAME_WIDTH - 105 + bobX
 
     if (this.bossHealth <= this.bossMaxHealth * 0.35) this.bossPhase = 3
     else if (this.bossHealth <= this.bossMaxHealth * 0.68) this.bossPhase = 2
     else this.bossPhase = 1
 
-    if (this.bossPhase < 2) return { x: 0, y: 0 }
+    const dt = Math.min(delta / 1000, 0.05)
+    const chaseSpeed = this.bossPhase === 3 ? 72 : this.bossPhase === 2 ? 54 : 38
+    const desiredX = Phaser.Math.Clamp(this.gerald.x + 150, GAME_WIDTH * 0.48, GAME_WIDTH - 78)
+    const desiredY = Phaser.Math.Clamp(this.gerald.y - 10, WATER_TOP + 95, POOL_BOTTOM - 110)
+    const dx = desiredX - this.bossObj.x
+    const dy = desiredY - this.bossObj.y
+    const distToTarget = Math.max(1, Math.sqrt(dx * dx + dy * dy))
+    const step = Math.min(chaseSpeed * dt, distToTarget)
+    this.bossObj.x += (dx / distToTarget) * step
+    this.bossObj.y += (dy / distToTarget) * step + Math.sin(time / 360) * 0.28
 
     const dist = Phaser.Math.Distance.Between(this.gerald.x, this.gerald.y, this.bossObj.x, this.bossObj.y)
-    const radius = this.bossPhase === 3 ? 150 : 120
+    const radius = this.bossPhase === 3 ? 170 : this.bossPhase === 2 ? 145 : 90
     if (dist >= radius || dist <= 4) return { x: 0, y: 0 }
 
     const angle = Phaser.Math.Angle.Between(this.gerald.x, this.gerald.y, this.bossObj.x, this.bossObj.y)
     const proximity = 1 - dist / radius
-    const strength = (this.bossPhase === 3 ? 210 : 145) * (0.7 + proximity)
-    const dmg = (this.bossPhase === 3 ? 3.2 : 1.8) * (delta / 1000) * this.gerald.hazardDamageMultiplier
+    const strength = (this.bossPhase === 3 ? 245 : this.bossPhase === 2 ? 180 : 80) * (0.7 + proximity)
+    const dmg = (this.bossPhase === 3 ? 3.8 : this.bossPhase === 2 ? 2.3 : 0.8) * (delta / 1000) * this.gerald.hazardDamageMultiplier
     this.drownMeter = Math.min(100, this.drownMeter + dmg)
     return {
       x: Math.cos(angle) * strength,
@@ -483,7 +489,10 @@ export default class LevelScene extends Phaser.Scene {
     this._updateBossUI()
     this._showFloatingText(this.bossObj.x, this.bossObj.y - 70, `-${amount} BOSS`, '#ffee00')
     this.cameras.main.shake(160, 0.006)
-    if (this.bossHealth <= 0) this._win()
+    if (this.bossHealth <= 0) {
+      this.bossDefeated = true
+      this._win()
+    }
   }
 
   _spawnNextHazard() {
@@ -528,6 +537,9 @@ export default class LevelScene extends Phaser.Scene {
     if (type === 'floating_leaf') {
       x = GAME_WIDTH + 50
       y = Phaser.Math.Between(WATER_TOP + 15, WATER_TOP + 100)
+    } else if (type === 'kickboard' || type === 'floating_ring') {
+      x = GAME_WIDTH + 50
+      y = Phaser.Math.Between(WATER_TOP + 45, POOL_BOTTOM - 100)
     } else if (type === 'splash_zone') {
       x = Phaser.Math.Between(Math.floor(GAME_WIDTH * 0.45), GAME_WIDTH - 130)
       y = Phaser.Math.Between(WATER_TOP + 80, POOL_BOTTOM - 130)
@@ -637,10 +649,16 @@ export default class LevelScene extends Phaser.Scene {
     if (hazard.definition.slowsGerald) {
       // Leaf: tangle Gerald — slow movement and nudge down
       const origSpeed = this.gerald.moveSpeed
-      this.gerald.moveSpeed = origSpeed * 0.35
-      this.gerald.setVelocityY(Math.min(this.gerald.body.velocity.y + 70, this.gerald.maxDownVelocity))
+      const slowMult = hazard.hazardType === 'floating_ring' ? 0.45 : 0.35
+      this.gerald.moveSpeed = origSpeed * slowMult
+      this.gerald.setVelocityY(Math.min(this.gerald.body.velocity.y + 85, this.gerald.maxDownVelocity + 30))
       this.time.delayedCall(1500, () => { if (this.gerald && this.gerald.active) this.gerald.moveSpeed = origSpeed })
-      this._showFloatingText(gerald.x, gerald.y - 30, 'TANGLED!', '#33aa33')
+      this._showFloatingText(gerald.x, gerald.y - 30, hazard.hazardType === 'floating_ring' ? 'RING SNAG!' : 'TANGLED!', '#33aa33')
+    } else if (hazard.definition.nudgesGerald) {
+      const dir = (gerald.x <= hazard.x) ? -1 : 1
+      this.gerald.setVelocityX(dir * 170)
+      this.gerald.setVelocityY(Math.min(this.gerald.body.velocity.y + 95, this.gerald.maxDownVelocity + 35))
+      this._showFloatingText(gerald.x, gerald.y - 30, 'BUMP!', '#ff8844')
     } else if (hazard.definition.bouncesGerald) {
       // Ball: bounce Gerald upward and sideways
       const ballDir = (gerald.x <= hazard.x) ? -1 : 1
@@ -767,6 +785,60 @@ export default class LevelScene extends Phaser.Scene {
     return { x: 0, y: 1 }
   }
 
+  _getSurfaceFatigueStep() {
+    const order = this.levelDef.order || 1
+    if (order <= 1) return 0.025
+    if (order <= 3) return 0.04
+    if (order <= 6) return 0.06
+    return 0.08
+  }
+
+  _getSurfaceRecoveryMultiplier() {
+    const step = this._getSurfaceFatigueStep()
+    return Phaser.Math.Clamp(1 - this.surfaceBreathCount * step, 0.54, 1)
+  }
+
+  _getSurfaceSwimMultiplier() {
+    const step = this._getSurfaceFatigueStep()
+    return Phaser.Math.Clamp(1 - this.surfaceBreathCount * step * 0.5, 0.76, 1)
+  }
+
+  _trackSurfaceRecovery(recovered) {
+    if (recovered <= 0) return
+    this._surfaceVisitRecovery += recovered
+    if (!this._surfaceVisitCounted && this._surfaceVisitRecovery >= 0.6) {
+      this._surfaceVisitCounted = true
+      this.surfaceBreathCount += 1
+      if (this.surfaceBreathCount >= 3) {
+        this._showFloatingText(this.gerald.x, SURFACE_ZONE_Y - 18, 'TIRED!', '#cceeff')
+      }
+    }
+  }
+
+  _resetSurfaceVisitIfNeeded(inSurfaceZone) {
+    if (inSurfaceZone === this._wasInSurfaceZone) return
+    this._wasInSurfaceZone = inSurfaceZone
+    if (inSurfaceZone) {
+      this._surfaceVisitRecovery = 0
+      this._surfaceVisitCounted = false
+    }
+  }
+
+  _checkFinishLineCrossing() {
+    if (this.isBossLevel || this.isWon || this.isGameOver || !this._finishBar || !this._finishBar.active) return false
+    const gBounds = this.gerald.getBounds()
+    const finishX = this._finishBar.x
+    const geraldFront = gBounds.right
+    const overlapsX = finishX <= geraldFront
+    const overlapsY = gBounds.bottom >= WATER_TOP && gBounds.top <= POOL_BOTTOM
+    if (overlapsX && overlapsY) {
+      this.levelProgress = this.levelDef.levelLength
+      this._win()
+      return true
+    }
+    return false
+  }
+
   _createForceDebugOverlay() {
     const forceDebugOn = DEBUG_GERALD && typeof window !== 'undefined' && window.location.search.includes('debugForce=1')
     if (!forceDebugOn) return
@@ -788,14 +860,14 @@ export default class LevelScene extends Phaser.Scene {
     const hasForceY = Math.abs(forceY) > 0.1
 
     if (hasForceX) {
-      this._envVelocityX = Phaser.Math.Clamp(this._envVelocityX + forceX * dt, -240, 240)
+      this._envVelocityX = Phaser.Math.Clamp(this._envVelocityX + forceX * dt, -300, 300)
     } else {
       this._envVelocityX *= Math.pow(0.08, dt)
       if (Math.abs(this._envVelocityX) < 2) this._envVelocityX = 0
     }
 
     if (hasForceY) {
-      this._envVelocityY = Phaser.Math.Clamp(this._envVelocityY + forceY * dt, -135, 210)
+      this._envVelocityY = Phaser.Math.Clamp(this._envVelocityY + forceY * dt, -155, 245)
     } else {
       this._envVelocityY *= Math.pow(0.10, dt)
       if (Math.abs(this._envVelocityY) < 2) this._envVelocityY = 0
@@ -858,6 +930,8 @@ export default class LevelScene extends Phaser.Scene {
       debugLog('LevelScene.update', getSceneDebugSnapshot(this))
     }
 
+    this.gerald.surfaceSwimMultiplier = this._getSurfaceSwimMultiplier()
+
     const leftHeld  = this.cursors.left.isDown  || this.wasd.left.isDown  || this.btnLeftDown
     const rightHeld = this.cursors.right.isDown || this.wasd.right.isDown || this.btnRightDown
     const bobPressed = Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
@@ -895,25 +969,37 @@ export default class LevelScene extends Phaser.Scene {
     }
 
     // Finish line appears near end
-    if (!this.isBossLevel && !this.finishLineSpawned && this.levelProgress >= this.levelDef.levelLength * 0.85) {
+    if (!this.isBossLevel && !this.finishLineSpawned && this.levelProgress >= this.levelDef.levelLength * 0.78) {
       this.finishLineSpawned = true
       this._spawnFinishLine()
     }
 
     // Win condition
-    if (!this.isBossLevel && this.levelProgress >= this.levelDef.levelLength) {
+    if (!this.isBossLevel && this.levelProgress >= this.levelDef.levelLength && !this.finishLineSpawned) {
       this._win()
       return
     }
 
+    if (this.finishLineObj && this.finishLineObj.active) {
+      this.finishLineObj.x -= scrollSpeed
+    }
+    if (this._finishBar && this._finishBar.active) {
+      this._finishBar.x -= scrollSpeed
+    }
+    if (this._checkFinishLineCrossing()) return
+
     // Zone-based drown meter
     const geraldY = this.gerald.y
     const baseDrownRate = this.levelDef.drownFillRate * this.gerald.drownFillRateMultiplier
+    const inSurfaceZone = geraldY <= SURFACE_ZONE_Y
+    this._resetSurfaceVisitIfNeeded(inSurfaceZone)
 
-    if (geraldY <= SURFACE_ZONE_Y) {
+    if (inSurfaceZone) {
       // Surface zone: rapid DROWN recovery
-      const recoveryRate = this.levelDef.surfaceRecoveryRate || 20
+      const recoveryRate = (this.levelDef.surfaceRecoveryRate || 20) * this._getSurfaceRecoveryMultiplier()
+      const before = this.drownMeter
       this.drownMeter = Math.max(0, this.drownMeter - recoveryRate * (delta / 1000))
+      this._trackSurfaceRecovery(before - this.drownMeter)
     } else if (geraldY >= DANGER_ZONE_Y) {
       // Deep danger zone: DROWN fills fast
       this.drownMeter = Math.min(100, this.drownMeter + baseDrownRate * 2.5 * (delta / 1000))
@@ -1007,8 +1093,8 @@ export default class LevelScene extends Phaser.Scene {
           const isInner = dist < innerR
           const isMiddle = dist < middleR
           const proximity = 1 - Math.min(dist / outerR, 1)
-          const tierPull = isInner ? 330 : isMiddle ? 205 : 95
-          const pullStr = tierPull * (zone._vacStrength || 1.0) * (0.75 + proximity * 0.5) * escape
+          const tierPull = isInner ? 470 : isMiddle ? 300 : 125
+          const pullStr = tierPull * (zone._vacStrength || 1.0) * (0.78 + proximity * 0.6) * escape
           const drownRate = isInner
             ? (zone.definition.drownRateInner || 12)
             : isMiddle
@@ -1017,7 +1103,7 @@ export default class LevelScene extends Phaser.Scene {
           environmentalForceX += Math.cos(angle) * pullStr
           environmentalForceY += Math.sin(angle) * pullStr
           if (!environmentalSources.includes('vacuum')) environmentalSources.push('vacuum')
-          const dmgResist = isInner ? Math.max(escape, 0.6) : 1
+          const dmgResist = Math.max(escape, 0.55)
           const dmg = drownRate * (delta / 1000) * this.gerald.hazardDamageMultiplier * dmgResist
           this.drownMeter = Math.min(100, this.drownMeter + dmg)
           if (!zone._txtShown) {
@@ -1106,14 +1192,6 @@ export default class LevelScene extends Phaser.Scene {
       if (c.x < -50) c.destroy()
     })
 
-    // Scroll finish line
-    if (this.finishLineObj && this.finishLineObj.active) {
-      this.finishLineObj.x -= scrollSpeed
-    }
-    if (this._finishBar && this._finishBar.active) {
-      this._finishBar.x -= scrollSpeed
-    }
-
     this._updateUI()
   }
 
@@ -1144,6 +1222,10 @@ export default class LevelScene extends Phaser.Scene {
   // --- WIN / GAME OVER ---
   _win() {
     if (this.isWon || this._transitioning) return
+    if (this.isBossLevel && !this.bossDefeated && this.bossHealth > 0) {
+      debugLog('LevelScene.bossWinBlocked', getSceneDebugSnapshot(this, { bossHealth: this.bossHealth }))
+      return
+    }
     this.isWon = true
     this._transitioning = true
     debugLog('LevelScene.win', getSceneDebugSnapshot(this))

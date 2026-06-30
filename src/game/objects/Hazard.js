@@ -32,6 +32,26 @@ export const HAZARD_TYPES = {
     width: 36,
     height: 36,
   },
+  kickboard: {
+    drownIncrease: 2,
+    speed: 82,
+    scoreOnDodge: 10,
+    closeCallDistance: 48,
+    closeCallScore: 30,
+    nudgesGerald: true,
+    width: 58,
+    height: 24,
+  },
+  floating_ring: {
+    drownIncrease: 2,
+    speed: 74,
+    scoreOnDodge: 12,
+    closeCallDistance: 54,
+    closeCallScore: 35,
+    slowsGerald: true,
+    width: 52,
+    height: 52,
+  },
   splash_zone: {
     drownIncrease: 0,
     drownRate: 12,       // per-second damage during active phase only
@@ -54,19 +74,19 @@ export const HAZARD_TYPES = {
   },
   vacuum_suction: {
     drownIncrease: 0,
-    drownRateOuter: 0.5, // per-second in outer zone
-    drownRateMiddle: 3.5,
-    drownRateInner: 12,  // per-second in inner zone
+    drownRateOuter: 0.8, // per-second in outer zone
+    drownRateMiddle: 5.0,
+    drownRateInner: 16,  // per-second in inner zone
     speed: 0,
     scoreOnDodge: 20,
     closeCallDistance: 100,
     closeCallScore: 55,
-    width: 260,
-    height: 260,
-    outerRadius: 130,
-    middleRadius: 78,
-    innerRadius: 34,
-    duration: 5000,
+    width: 292,
+    height: 292,
+    outerRadius: 146,
+    middleRadius: 88,
+    innerRadius: 40,
+    duration: 5600,
   },
 }
 
@@ -156,7 +176,7 @@ export default class Hazard {
     }
 
     // LEAF: y-bobbing + slight rotation
-    if (type === 'floating_leaf') {
+    if (type === 'floating_leaf' || type === 'kickboard' || type === 'floating_ring') {
       this._addTween({
         targets: this, _leafOffsetY: 10,
         duration: 700, yoyo: true, repeat: -1,
@@ -170,7 +190,7 @@ export default class Hazard {
     }
 
     // BEACH BALL: continuous spin
-    if (type === 'beach_ball') {
+    if (type === 'beach_ball' || type === 'floating_ring') {
       this._addTween({
         targets: this._gfx,
         rotation: Math.PI * 2,
@@ -399,6 +419,36 @@ export default class Hazard {
       return
     }
 
+    // ---- KICKBOARD ----
+    if (type === 'kickboard') {
+      g.fillStyle(0xff8844, 0.95)
+      g.fillRoundedRect(-28, -12 + this._leafOffsetY, 56, 24, 8)
+      g.fillStyle(0xffcc66, 0.8)
+      g.fillRoundedRect(-18, -6 + this._leafOffsetY, 36, 8, 4)
+      g.lineStyle(2, 0xaa4400, 0.75)
+      g.strokeRoundedRect(-28, -12 + this._leafOffsetY, 56, 24, 8)
+      g.lineStyle(2, 0xffffff, 0.35)
+      g.lineBetween(-20, -9 + this._leafOffsetY, 18, -9 + this._leafOffsetY)
+      return
+    }
+
+    // ---- FLOATING RING ----
+    if (type === 'floating_ring') {
+      const y = this._leafOffsetY
+      g.lineStyle(9, 0xff55aa, 0.95)
+      g.strokeCircle(0, y, 22)
+      g.lineStyle(5, 0xffffff, 0.95)
+      g.beginPath()
+      g.arc(0, y, 22, -0.3, 0.55)
+      g.strokePath()
+      g.beginPath()
+      g.arc(0, y, 22, Math.PI - 0.3, Math.PI + 0.55)
+      g.strokePath()
+      g.lineStyle(2, 0x991155, 0.75)
+      g.strokeCircle(0, y, 22)
+      return
+    }
+
     // ---- SPLASH ZONE ----
     if (type === 'splash_zone') {
       const sc = this._splashScale
@@ -534,21 +584,24 @@ export default class Hazard {
 
     // ---- VACUUM SUCTION ----
     if (type === 'vacuum_suction') {
+      const outer = this.definition.outerRadius || 130
+      const middle = this.definition.middleRadius || 78
+      const inner = this.definition.innerRadius || 34
       // 3 concentric circles
       g.fillStyle(0x330066, 0.2)
-      g.fillCircle(0, 0, 80)
+      g.fillCircle(0, 0, outer)
       g.lineStyle(3, 0x9933ff, 0.7)
-      g.strokeCircle(0, 0, 80)
+      g.strokeCircle(0, 0, outer)
 
       g.fillStyle(0x550088, 0.3)
-      g.fillCircle(0, 0, 50)
+      g.fillCircle(0, 0, middle)
       g.lineStyle(2, 0xbb44ff, 0.8)
-      g.strokeCircle(0, 0, 50)
+      g.strokeCircle(0, 0, middle)
 
       g.fillStyle(0x7700aa, 0.45)
-      g.fillCircle(0, 0, 32)
+      g.fillCircle(0, 0, inner)
       g.lineStyle(2, 0xdd66ff, 0.9)
-      g.strokeCircle(0, 0, 32)
+      g.strokeCircle(0, 0, inner)
 
       // Center dot
       g.fillStyle(0xffffff, 0.8)
@@ -557,10 +610,10 @@ export default class Hazard {
       // 4 inward arrows (axial)
       const arrowDirs = [[0, -1], [0, 1], [-1, 0], [1, 0]]
       arrowDirs.forEach(([dx, dy]) => {
-        const outerX = dx * 72
-        const outerY = dy * 72
-        const innerX = dx * 40
-        const innerY = dy * 40
+        const outerX = dx * (outer - 18)
+        const outerY = dy * (outer - 18)
+        const innerX = dx * (middle - 12)
+        const innerY = dy * (middle - 12)
         g.lineStyle(3, 0xcc44ff, 0.9)
         g.lineBetween(outerX, outerY, innerX, innerY)
         // Arrow head
@@ -574,10 +627,10 @@ export default class Hazard {
       const diagDirs = [[1, -1], [1, 1], [-1, 1], [-1, -1]]
       diagDirs.forEach(([dx, dy]) => {
         const norm = Math.SQRT2
-        const ox = dx * 65 / norm
-        const oy = dy * 65 / norm
-        const ix = dx * 36 / norm
-        const iy = dy * 36 / norm
+        const ox = dx * (outer - 28) / norm
+        const oy = dy * (outer - 28) / norm
+        const ix = dx * (middle - 18) / norm
+        const iy = dy * (middle - 18) / norm
         g.lineStyle(1, 0xaa44ff, 0.4)
         g.lineBetween(ox, oy, ix, iy)
       })
@@ -599,7 +652,7 @@ export default class Hazard {
     this._gfx.setPosition(bx, by)
 
     // Leaf vertical bobbing
-    if (this.hazardType === 'floating_leaf' && this._leafOffsetY !== undefined) {
+    if ((this.hazardType === 'floating_leaf' || this.hazardType === 'kickboard' || this.hazardType === 'floating_ring') && this._leafOffsetY !== undefined) {
       this._gfx.setPosition(bx, by + this._leafOffsetY)
     }
 
