@@ -22,6 +22,16 @@ export const HAZARD_TYPES = {
     width: 44,
     height: 20,
   },
+  water_bug: {
+    drownIncrease: 1,
+    speed: 76,
+    scoreOnDodge: 6,
+    closeCallDistance: 42,
+    closeCallScore: 28,
+    slowsGerald: true,
+    width: 44,
+    height: 22,
+  },
   beach_ball: {
     drownIncrease: 3,
     speed: 90,
@@ -176,7 +186,7 @@ export default class Hazard {
     }
 
     // LEAF: y-bobbing + slight rotation
-    if (type === 'floating_leaf' || type === 'kickboard' || type === 'floating_ring') {
+    if (type === 'floating_leaf' || type === 'water_bug' || type === 'kickboard' || type === 'floating_ring') {
       this._addTween({
         targets: this, _leafOffsetY: 10,
         duration: 700, yoyo: true, repeat: -1,
@@ -394,8 +404,22 @@ export default class Hazard {
       return
     }
 
-    // ---- WATER BUG ----
+    // ---- FLOATING LEAF ----
     if (type === 'floating_leaf') {
+      const y = this._leafOffsetY
+      g.fillStyle(0x33aa22, 0.9)
+      g.fillEllipse(0, y, 44, 18)
+      g.fillStyle(0x55cc33, 0.6)
+      g.fillEllipse(-5, y - 2, 24, 10)
+      g.lineStyle(1, 0x228800, 0.8)
+      g.lineBetween(-18, y, 18, y)
+      g.lineStyle(2, 0x66dd44, 0.55)
+      g.lineBetween(-10, y - 6, 8, y + 6)
+      return
+    }
+
+    // ---- WATER BUG ----
+    if (type === 'water_bug') {
       const y = this._leafOffsetY
       g.lineStyle(2, 0x0d2b35, 0.88)
       g.lineBetween(-16, y - 5, -28, y - 12)
@@ -683,7 +707,7 @@ export default class Hazard {
     this._gfx.setPosition(bx, by)
 
     // Leaf vertical bobbing
-    if ((this.hazardType === 'floating_leaf' || this.hazardType === 'kickboard' || this.hazardType === 'floating_ring') && this._leafOffsetY !== undefined) {
+    if ((this.hazardType === 'floating_leaf' || this.hazardType === 'water_bug' || this.hazardType === 'kickboard' || this.hazardType === 'floating_ring') && this._leafOffsetY !== undefined) {
       this._gfx.setPosition(bx, by + this._leafOffsetY)
     }
 

@@ -398,7 +398,7 @@ export default class LevelScene extends Phaser.Scene {
       ? ['floating_leaf', 'beach_ball']
       : order <= 2
         ? ['floating_leaf', 'beach_ball', 'kickboard']
-        : ['floating_leaf', 'beach_ball', 'kickboard', 'floating_ring']
+        : ['floating_leaf', 'water_bug', 'beach_ball', 'kickboard', 'floating_ring']
     this._spawnHazard(Phaser.Utils.Array.GetRandom(types), {
       y: Phaser.Math.Between(WATER_TOP + 35, WATER_TOP + 135),
     })
@@ -410,8 +410,8 @@ export default class LevelScene extends Phaser.Scene {
     const types = order <= 2
       ? ['floating_leaf', 'beach_ball']
       : order <= 4
-        ? ['floating_leaf', 'beach_ball', 'kickboard']
-        : ['floating_leaf', 'beach_ball', 'kickboard', 'floating_ring']
+        ? ['floating_leaf', 'water_bug', 'beach_ball', 'kickboard']
+        : ['floating_leaf', 'water_bug', 'beach_ball', 'kickboard', 'floating_ring']
     const type = types[this._surfacePressureIdx % types.length]
     this._surfacePressureIdx += 1
     this._spawnHazard(type, {
@@ -512,7 +512,7 @@ export default class LevelScene extends Phaser.Scene {
     const guardedBubble = this._getActivePowerBubble()
     if (guardedBubble && this.time.now < this.bossGuardUntil) {
       const guardChoices = phase >= 3
-        ? ['vacuum_suction', 'splash_zone', 'cannonball_wave', 'floating_ring']
+        ? ['vacuum_suction', 'splash_zone', 'cannonball_wave', 'floating_ring', 'water_bug']
         : ['splash_zone', 'cannonball_wave', 'kickboard']
       const guardType = Phaser.Utils.Array.GetRandom(guardChoices)
       const x = Phaser.Math.Clamp(guardedBubble.x + Phaser.Math.Between(-40, 55), 80, GAME_WIDTH - 85)
@@ -526,7 +526,7 @@ export default class LevelScene extends Phaser.Scene {
       ? ['cannonball_wave', 'splash_zone', 'kickboard']
       : phase === 2
         ? ['vacuum_suction', 'cannonball_wave', 'splash_zone', 'floating_ring']
-        : ['vacuum_suction', 'cannonball_wave', 'splash_zone', 'splash_cluster', 'beach_ball']
+        : ['vacuum_suction', 'cannonball_wave', 'splash_zone', 'splash_cluster', 'beach_ball', 'water_bug']
     const type = Phaser.Utils.Array.GetRandom(choices)
     if (type === 'splash_cluster') {
       this._spawnHazard('splash_zone')
@@ -629,7 +629,7 @@ export default class LevelScene extends Phaser.Scene {
     let x, y
     const opts = {}
 
-    if (type === 'floating_leaf') {
+    if (type === 'floating_leaf' || type === 'water_bug') {
       x = spawnOpts.x ?? GAME_WIDTH + 50
       y = spawnOpts.y ?? Phaser.Math.Between(WATER_TOP + 15, WATER_TOP + 100)
     } else if (type === 'kickboard' || type === 'floating_ring') {
@@ -783,7 +783,12 @@ export default class LevelScene extends Phaser.Scene {
       this.gerald.moveSpeed = origSpeed * slowMult
       this.gerald.setVelocityY(Math.min(this.gerald.body.velocity.y + 85, this.gerald.maxDownVelocity + 30))
       this.time.delayedCall(1500, () => { if (this.gerald && this.gerald.active) this.gerald.moveSpeed = origSpeed })
-      this._showFloatingText(gerald.x, gerald.y - 30, hazard.hazardType === 'floating_ring' ? 'RING SNAG!' : 'TANGLED!', '#33aa33')
+      const msg = hazard.hazardType === 'floating_ring'
+        ? 'RING SNAG!'
+        : hazard.hazardType === 'water_bug'
+          ? 'BUG BUMP!'
+          : 'TANGLED!'
+      this._showFloatingText(gerald.x, gerald.y - 30, msg, '#33aa33')
     } else if (hazard.definition.nudgesGerald) {
       const dir = (gerald.x <= hazard.x) ? -1 : 1
       this.gerald.setVelocityX(dir * 170)
@@ -1179,6 +1184,15 @@ export default class LevelScene extends Phaser.Scene {
         if (zBounds && Phaser.Geom.Rectangle.Overlaps(zBounds, gBounds)) {
           const splashDmg = zone.definition.drownRate * (delta / 1000) * this.gerald.hazardDamageMultiplier
           this.drownMeter = Math.min(100, this.drownMeter + splashDmg)
+          const angle = Phaser.Math.Angle.Between(zone.x, zone.y, this.gerald.x, this.gerald.y)
+          environmentalForceX += Math.cos(angle) * 70
+          environmentalForceY += Math.sin(angle) * 70
+          if (!environmentalSources.includes('splash')) environmentalSources.push('splash')
+          if (!zone._txtShown) {
+            zone._txtShown = true
+            this._showFloatingText(this.gerald.x, this.gerald.y - 30, 'SPLASH!', '#00ccff')
+            this.time.delayedCall(1200, () => { if (zone.active) zone._txtShown = false })
+          }
         }
       }
       return true
